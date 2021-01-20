@@ -1,2 +1,2 @@
-# CSC468-group3
+# CSC468-group3 Pygang
 Group project for CSC468
