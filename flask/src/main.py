@@ -4,13 +4,13 @@ import motor.motor_asyncio
 import time
 
 loop = asyncio.get_event_loop()
-app = Flask(__name__)
+flask_app = Flask(__name__)
 db_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://mongo:27017")
 
 async def async_sleep_1_sec():
     await asyncio.sleep(1)
 
-@app.route("/")
+@flask_app.route("/")
 def home():
     start = time.time()
     tasks = asyncio.gather(

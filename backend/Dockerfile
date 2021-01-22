@@ -5,9 +5,8 @@ RUN mkdir /app
 WORKDIR /app
 
 COPY requirements.txt /app
-COPY uwsgi.ini /app
-COPY src/ /app
+COPY temp.py /app
 
 RUN pip install -r requirements.txt
 
-CMD ["uwsgi", "uwsgi.ini"]
+CMD ["python3", "temp.py"]
