@@ -7,6 +7,8 @@ services:
     restart: always #TODO
     expose:
       - 8080
+    external_links:
+      - mongo
 
   nginx:
     build: ./nginx
@@ -14,3 +16,9 @@ services:
     restart: always
     ports:
       - "80:80"
+
+  mongo:
+    container_name: mongo
+    image: mongo
+    ports:
+      - '27017:27017'

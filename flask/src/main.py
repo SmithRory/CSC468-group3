@@ -1,16 +1,28 @@
 import asyncio
 from flask import Flask
+import motor.motor_asyncio
+import time
 
 loop = asyncio.get_event_loop()
 app = Flask(__name__)
+db_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://mongo:27017")
 
-async def test():
+async def async_sleep_1_sec():
     await asyncio.sleep(1)
 
 @app.route("/")
 def home():
-    loop.run_until_complete(test())
-    return "Asyncio test"
+    start = time.time()
+    tasks = asyncio.gather(
+        async_sleep_1_sec(),
+        async_sleep_1_sec(),
+        async_sleep_1_sec(),
+        async_sleep_1_sec(),
+        async_sleep_1_sec()
+    )
 
-# if __name__ == "__main__":
-#     app.run()
+    loop.run_until_complete(tasks)
+
+    
+
+    return f"Time taken: {time.time() - start}"
