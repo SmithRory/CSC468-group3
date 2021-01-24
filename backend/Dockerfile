@@ -5,8 +5,8 @@ RUN mkdir /app
 WORKDIR /app
 
 COPY requirements.txt /app
-COPY temp.py /app
+COPY src/ /app
 
 RUN pip install -r requirements.txt
 
-CMD ["python3", "temp.py"]
+CMD ["python3", "main.py"]

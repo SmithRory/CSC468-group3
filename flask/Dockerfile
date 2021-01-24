@@ -10,4 +10,7 @@ COPY src/ /app
 
 RUN pip install -r requirements.txt
 
-CMD ["uwsgi", "uwsgi.ini"]
+CMD ["uwsgi", \
+     "--manage-script-name", \
+     "--mount", "/=main:app", \
+     "uwsgi.ini"]
