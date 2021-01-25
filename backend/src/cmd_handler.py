@@ -72,7 +72,7 @@ def display_summary(params):
 def unknown_cmd(params):
     print("UNKNOWN COMMAND!")
     
-# TODO
+# Should only be used for testing.
 if __name__ == "__main__":
     command = "SELL"
     parameters = ("oY01WVirLr", "S", 641.90)
