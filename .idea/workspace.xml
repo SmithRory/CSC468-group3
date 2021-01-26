@@ -2,16 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="3818b603-7284-4d97-870b-143bcd7ec82c" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/frontend/.dockerignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/Dockerfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/uwsgi.ini" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/flask/.dockerignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/flask/Dockerfile" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/flask/requirements.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/flask/src/main.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/flask/uwsgi.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
