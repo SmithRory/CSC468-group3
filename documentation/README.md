@@ -49,6 +49,7 @@ All requirements are pulled from CourseProject.pdf.
 - uWSGI
 - Flask
 - NginX
+- MongoDB
 
 ## Development Platform
 
