@@ -1,7 +1,7 @@
 import signal
 import sys
 import os
-import asyncio
+import socket
 from container_comm import Comm
 import time
 
@@ -14,8 +14,6 @@ def exit_gracefully(self, signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
-loop = asyncio.get_event_loop()
-
 # comm = Comm()
 # loop.run_until_complete(comm.connect())
 # loop.run_until_complete(comm.send("test data"))
@@ -24,5 +22,19 @@ loop = asyncio.get_event_loop()
 if __name__ == "__main__":
     
     while not EXIT_PROGRAM:
-        time.sleep(1)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            PORT = int(os.environ["BACKEND_PORT"])
+            s.bind(("backend", PORT))
+            s.listen()
+            conn, addr = s.accept()
+    
+            with conn:
+                print('Connected by', addr)
+                sys.stdout.flush()
+                while True:
+                    data = conn.recv(1024)
+                    if not data:
+                        break
+                    conn.sendall(data)
+        # time.sleep(1)
         pass

@@ -2,16 +2,21 @@ from flask import Flask, request
 import sys
 import socket
 import time
+import os
 from random import Random, randrange
 
 flask_app = Flask(__name__)
 
 @flask_app.route("/")
 def home():
-    # sleep_for = 10#randrange(5)    
-    # print(f"sleeping for {sleep_for}")
-    # sys.stdout.flush()
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        PORT = int(os.environ["BACKEND_PORT"])
+        s.connect(("backend", PORT))
+        s.sendall(b'Hello, world. IPC success!')
+        data = s.recv(1024)
 
-    # time.sleep(sleep_for)
+        print('Received', repr(data))
+        sys.stdout.flush()
+        return repr(data)
 
-    return request.form
+    return "Hello World"
