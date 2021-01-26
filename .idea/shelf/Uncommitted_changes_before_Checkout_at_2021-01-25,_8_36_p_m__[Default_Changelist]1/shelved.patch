@@ -1,0 +1,9 @@
+diff --git a/app/src/templates/home.html b/frontend/src/templates/home.html
+rename from app/src/templates/home.html
+rename to frontend/src/templates/home.html
+diff --git a/app/Dockerfile b/frontend/Dockerfile
+rename from app/Dockerfile
+rename to frontend/Dockerfile
+diff --git a/app/.dockerignore b/frontend/.dockerignore
+rename from app/.dockerignore
+rename to frontend/.dockerignore

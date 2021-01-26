@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   flask:
-    build: flask
+    build: frontend
     container_name: flask
     restart: always
     networks: 

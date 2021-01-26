@@ -1,0 +1,28 @@
+Index: docker-compose.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>version: \"3.7\"\n\nservices:\n  flask:\n    build: ./flask\n    container_name: flask\n    restart: always #TODO\n    expose:\n      - 8080\n    external_links:\n      - mongo\n\n  nginx:\n    build: ./nginx\n    container_name: nginx\n    restart: always\n    ports:\n      - \"80:80\"\n\n  mongo:\n    container_name: mongo\n    image: mongo\n    ports:\n      - '27017:27017'
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docker-compose.yml b/docker-compose.yml
+--- a/docker-compose.yml	(revision 37ce1e10803fe160ff0fbb8cb30abf2866888d99)
++++ b/docker-compose.yml	(date 1611635846639)
+@@ -2,7 +2,7 @@
+ 
+ services:
+   flask:
+-    build: ./flask
++    build: frontend
+     container_name: flask
+     restart: always #TODO
+     expose:
+diff --git a/flask/requirements.txt b/frontend/requirements.txt
+rename from flask/requirements.txt
+rename to frontend/requirements.txt
+diff --git a/flask/.dockerignore b/frontend/.dockerignore
+rename from flask/.dockerignore
+rename to frontend/.dockerignore
+diff --git a/flask/Dockerfile b/frontend/Dockerfile
+rename from flask/Dockerfile
+rename to frontend/Dockerfile

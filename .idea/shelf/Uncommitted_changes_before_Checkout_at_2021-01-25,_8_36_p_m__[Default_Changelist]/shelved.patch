@@ -1,0 +1,23 @@
+Index: docker-compose.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>version: \"3.7\"\n\nservices:\n  flask:\n    build: app\n    container_name: flask\n    restart: always\n    networks: \n      - frontend\n      - backend\n    expose:\n      - 8080\n    environment: \n      - BACKEND_PORT=${BACKEND_PORT}\n    \n  nginx:\n    build: nginx\n    container_name: nginx\n    restart: always\n    networks: \n      - frontend\n    ports:\n      - 80:80\n\n  backend:\n    build: backend\n    container_name: backend\n    restart: always\n    networks:\n      - backend\n    environment: \n      - BACKEND_PORT=${BACKEND_PORT}\n      - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}\n\n  mongo:\n    container_name: mongo\n    image: mongo\n    networks: \n      - backend\n    ports:\n      - 27017:27017\n\nnetworks: \n  frontend:\n    driver: bridge\n  backend:\n    driver: bridge
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docker-compose.yml b/docker-compose.yml
+--- a/docker-compose.yml	
++++ b/docker-compose.yml	
+@@ -1,9 +1,9 @@
+ version: "3.7"
+ 
+ services:
+-  flask:
+-    build: app
+-    container_name: flask
++  frontend:
++    build: frontend
++    container_name: frontend
+     restart: always
+     networks: 
+       - frontend
