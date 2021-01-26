@@ -9,4 +9,4 @@ COPY src/ /app
 
 RUN pip install -r requirements.txt
 
-CMD ["uwsgi", "uwsgi.ini"]
+CMD ["python3", "main.py"]

@@ -2,23 +2,46 @@ version: "3.7"
 
 services:
   flask:
-    build: ./flask
+    build: frontend
     container_name: flask
-    restart: always #TODO
+    restart: always
+    networks: 
+      - frontend
+      - backend
     expose:
       - 8080
-    external_links:
-      - mongo
-
+    environment: 
+      - BACKEND_PORT=${BACKEND_PORT}
+    
   nginx:
-    build: ./nginx
+    build: nginx
     container_name: nginx
     restart: always
+    networks: 
+      - frontend
     ports:
-      - "80:80"
+      - 80:80
+
+  backend:
+    build: backend
+    container_name: backend
+    restart: always
+    networks:
+      - backend
+    environment: 
+      - BACKEND_PORT=${BACKEND_PORT}
+      - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
 
   mongo:
     container_name: mongo
     image: mongo
+    networks: 
+      - backend
     ports:
-      - '27017:27017'
+      - 27017:27017
+
+networks: 
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
