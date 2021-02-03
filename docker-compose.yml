@@ -1,6 +1,7 @@
 version: "3.7"
 
 services:
+  
   flask:
     build: frontend
     container_name: flask
@@ -32,6 +33,14 @@ services:
     container_name: worker
     environment: 
       - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
+      - MONGODB_DATABASE: accountdb
+      - MONGODB_USERNAME: pygang_worker
+      - MONGODB_PASSWORD: pygang_worker
+      - MONGODB_HOSTNAME: mongo
+    depends_on:
+      - mongo
+    networks:
+      - mongodb
     
   rabbitmq:
     image: rabbitmq:3-management
@@ -49,9 +58,25 @@ services:
       - 15672:15672
 
   mongo:
-    container_name: mongo
     image: mongo
+    container_name: mongo
+    restart: unless-stopped
+    command: mongod --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: pygang_root
+      MONGO_INITDB_ROOT_PASSWORD: pygang_root
+      MONGO_INITDB_DATABASE: accountdb
+      MONGODB_DATA_DIR: /data/db
+      MONGODB_LOG_DIR: /dev/null
     volumes:
-      - ./mongo-volume:/data/db
-    ports:
-      - 27017:27017
+     - mongo-data:/data/db
+    networks:
+      - mongodb
+
+networks:
+  mongodb:
+    driver: bridge # Allows the worker to communicate w/ mongo w/o exposing ports.
+
+volumes:
+  mongo-data:
+    driver: local
