@@ -1,6 +1,12 @@
 # CSC468-group3 Pygang
 Group project for CSC468
 
-[Project Documentation Folder](./documentation/README.md)
+## Team Members
+Rory Smith - V00891516
 
-[Google Doc](https://drive.google.com/drive/folders/1069sc6u9dr4h0-0q3rDnA65ZI2EEdPJP?usp=sharing)
+Oliver Lewis - V00877996
+
+Janhavi Dudhat - V00870135
+
+## Project Info
+[Project Documentation](./documentation)
