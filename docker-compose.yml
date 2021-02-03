@@ -7,6 +7,7 @@ services:
     restart: always
     expose:
       - 8080
+      # - ${BACKEND_PORT}
     environment: 
       - BACKEND_PORT=${BACKEND_PORT}
     
@@ -21,6 +22,8 @@ services:
     build: manager
     container_name: manager
     restart: always
+    # expose:
+    #   - ${BACKEND_PORT}
     environment: 
       - BACKEND_PORT=${BACKEND_PORT}
       - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
