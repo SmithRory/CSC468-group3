@@ -1,40 +1,42 @@
 version: "3.7"
 
 services:
-  flask:
-    build: frontend
-    container_name: flask
-    restart: always
-    expose:
-      - 8080
-      # - ${BACKEND_PORT}
-    environment: 
-      - BACKEND_PORT=${BACKEND_PORT}
+  # flask:
+  #   build: frontend
+  #   container_name: flask
+  #   restart: always
+  #   expose:
+  #     - 8080
+  #     # - ${BACKEND_PORT}
+  #   environment: 
+  #     - BACKEND_PORT=${BACKEND_PORT}
     
-  nginx:
-    build: nginx
-    container_name: nginx
-    restart: always
-    ports:
-      - 80:80
+  # nginx:
+  #   build: nginx
+  #   container_name: nginx
+  #   restart: always
+  #   ports:
+  #     - 80:80
 
   manager:
     build: manager
     container_name: manager
     restart: always
-    # expose:
-    #   - ${BACKEND_PORT}
+    depends_on:
+      - rabbitmq
+    expose:
+      - ${BACKEND_PORT}
     environment: 
       - BACKEND_PORT=${BACKEND_PORT}
       - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
     volumes: 
       - /var/run/docker.sock:/var/run/docker.sock
 
-  worker:
-    build: worker
-    container_name: worker
-    environment: 
-      - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
+  # worker:
+  #   build: worker
+  #   container_name: worker
+  #   environment: 
+  #     - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
     
   rabbitmq:
     image: rabbitmq:3-management
@@ -51,8 +53,8 @@ services:
       - 5672:5672
       - 15672:15672
 
-  mongo:
-    container_name: mongo
-    image: mongo
-    ports:
-      - 27017:27017
+  # mongo:
+  #   container_name: mongo
+  #   image: mongo
+  #   ports:
+  #     - 27017:27017
