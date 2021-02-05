@@ -1,11 +1,10 @@
 import signal
 import sys
 import os
-import socket
-from container_comm import Comm
-import time
 import pika
-
+import queue
+import time
+from threading import Thread, Lock
 
 # Handles exiting when SIGTERM (sent by ^C input) is received 
 # in a gracefull way. Main loop will only exit after a completed iteration
@@ -16,27 +15,37 @@ def exit_gracefully(self, signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
-# comm = Comm()
-# loop.run_until_complete(comm.connect())
-# loop.run_until_complete(comm.send("test data"))
+mutex = Lock()
 
+messages = []
+
+def queue_callback(ch, method, properties, body) -> None:
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    mutex.acquire()
+    messages.append(body.decode())
+    print(f'Received: {body.decode()}')
+    sys.stdout.flush()
+    mutex.release()
+
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='rabbitmq'))
+channel = connection.channel()
+
+channel.exchange_declare(exchange='backend')
+channel.queue_declare(queue='backend_queue')
+channel.queue_bind(exchange='backend', queue='backend_queue')
+
+channel.basic_consume(
+    queue='backend_queue',
+    on_message_callback=queue_callback
+)
 
 if __name__ == "__main__":
-    
+    t_consumer = Thread(target=channel.start_consuming)
+    t_consumer.start()
+
     while not EXIT_PROGRAM:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            PORT = int(os.environ["BACKEND_PORT"])
-            s.bind(("backend", PORT))
-            s.listen()
-            conn, addr = s.accept()
-    
-            with conn:
-                print('Connected by', addr)
-                sys.stdout.flush()
-                while True:
-                    data = conn.recv(1024)
-                    if not data:
-                        break
-                    conn.sendall(data)
-        # time.sleep(1)
-        pass
+        time.sleep(0.1)
+
+    t_consumer.join()

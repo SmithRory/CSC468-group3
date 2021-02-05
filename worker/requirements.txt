@@ -5,3 +5,4 @@ MarkupSafe==1.1.1
 motor==2.3.0
 Werkzeug==1.0.1
 pymongo==3.11.3
+pika==1.1.0

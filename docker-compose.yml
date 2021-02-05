@@ -11,12 +11,12 @@ services:
     environment: 
       - BACKEND_PORT=${BACKEND_PORT}
     
-  # nginx:
-  #   build: nginx
-  #   container_name: nginx
-  #   restart: always
-  #   ports:
-  #     - 80:80
+  nginx:
+    build: nginx
+    container_name: nginx
+    restart: always
+    ports:
+      - 80:80
 
   manager:
     build: manager
@@ -35,6 +35,7 @@ services:
   worker:
     build: worker
     container_name: worker
+    restart: always
     environment: 
       - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
       - MONGODB_DATABASE=pygangdb
@@ -43,8 +44,9 @@ services:
       - MONGODB_HOSTNAME=mongodb
     depends_on:
       - mongodb
-    networks:
-      - mongodb
+      - rabbitmq
+    # networks:
+    #   - mongodb
     
   rabbitmq:
     image: rabbitmq:3-management
@@ -75,12 +77,12 @@ services:
     volumes:
      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
      - mongo-data:/data/db
-    networks:
-      - mongodb
+    # networks:
+    #   - mongodb
 
-networks:
-  mongodb:
-    driver: bridge # Allows the worker to communicate w/ mongo w/o exposing ports.
+# networks:
+#   mongodb:
+#     driver: bridge # Allows the worker to communicate w/ mongo w/o exposing ports.
 
 volumes:
   mongo-data:
