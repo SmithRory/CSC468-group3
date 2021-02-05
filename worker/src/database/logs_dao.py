@@ -1,0 +1,1 @@
+# Interfaces with the 'logs' collection.

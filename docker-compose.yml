@@ -1,15 +1,15 @@
 version: "3.7"
 
 services:
-  # flask:
-  #   build: frontend
-  #   container_name: flask
-  #   restart: always
-  #   expose:
-  #     - 8080
-  #     # - ${BACKEND_PORT}
-  #   environment: 
-  #     - BACKEND_PORT=${BACKEND_PORT}
+
+  flask:
+    build: frontend
+    container_name: flask
+    restart: always
+    expose:
+      - 8080
+    environment: 
+      - BACKEND_PORT=${BACKEND_PORT}
     
   # nginx:
   #   build: nginx
@@ -32,11 +32,19 @@ services:
     volumes: 
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # worker:
-  #   build: worker
-  #   container_name: worker
-  #   environment: 
-  #     - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
+  worker:
+    build: worker
+    container_name: worker
+    environment: 
+      - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
+      - MONGODB_DATABASE=pygangdb
+      - MONGODB_USERNAME=pygang_worker
+      - MONGODB_PASSWORD=pygang_worker
+      - MONGODB_HOSTNAME=mongodb
+    depends_on:
+      - mongodb
+    networks:
+      - mongodb
     
   rabbitmq:
     image: rabbitmq:3-management
@@ -53,8 +61,27 @@ services:
       - 5672:5672
       - 15672:15672
 
-  # mongo:
-  #   container_name: mongo
-  #   image: mongo
-  #   ports:
-  #     - 27017:27017
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    restart: unless-stopped
+    command: mongod --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: pygang_root
+      MONGO_INITDB_ROOT_PASSWORD: pygang_root
+      MONGO_INITDB_DATABASE: pygangdb
+      MONGODB_DATA_DIR: /data/db
+      MONGODB_LOG_DIR: /dev/null
+    volumes:
+     - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+     - mongo-data:/data/db
+    networks:
+      - mongodb
+
+networks:
+  mongodb:
+    driver: bridge # Allows the worker to communicate w/ mongo w/o exposing ports.
+
+volumes:
+  mongo-data:
+    driver: local
