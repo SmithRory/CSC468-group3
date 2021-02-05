@@ -4,6 +4,8 @@ import os
 import socket
 from container_comm import Comm
 import time
+import pika
+
 
 # Handles exiting when SIGTERM (sent by ^C input) is received 
 # in a gracefull way. Main loop will only exit after a completed iteration

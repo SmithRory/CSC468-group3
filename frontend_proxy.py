@@ -76,7 +76,7 @@ def send_user_input() -> None:
         user_input = input('Enter Command: ')
 
         channel.basic_publish(
-            exchange='',
+            exchange=args.exchange,
             routing_key=args.queue,
             body=user_input,
             properties=pika.BasicProperties()

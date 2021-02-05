@@ -18,9 +18,21 @@ def queue_callback(ch, method, properties, body) -> None:
     sys.stdout.flush()
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
+    # channel.basic_publish(
+    #     exchange='backend',
+    #     routing_key='backend_queue',
+    #     body=body.decode(),
+    #     properties=pika.BasicProperties()
+    # )
+
 channel.exchange_declare(exchange='frontend')
 channel.queue_declare(queue='frontend_queue')
 channel.queue_bind(exchange='frontend', queue='frontend_queue')
+
+# channel.exchange_declare(exchange='backend')
+# channel.queue_declare(queue='backend_queue')
+# channel.queue_bind(exchange='backend', queue='backend_queue')
+
 # channel.basic_qos(prefetch_count=1)
 channel.basic_consume(
     queue='frontend_queue',
