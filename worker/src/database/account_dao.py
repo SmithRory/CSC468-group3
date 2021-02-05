@@ -1,37 +1,27 @@
-from connect import Connect
-from pymongo import MongoClient
+import os
+from mongoengine import *
 
-# The accounts collection
-'''db.accounts.insert_one(
-    {"user_id": "pygang_test_user",
-     "account": 1000.00,
-     "available": 825.00,
-     "stocks": [
-         { "symbol": "ABC", "amount" : 10 },
-         { "symbol": "XYZ", "amount" : 15 }
-     ],
-     "auto_buy": [
-        { "symbol": "ABC", "amount": 5, "trigger": 10.00 },
-        { "symbol": "FOO", "amount": 15, "trigger": 5.00 }
-     ], 
-     "auto_sell": [
-         { "symbol": "XYZ", "amount": 12, "trigger" : 15.00 }
-     ]})'''
+MONGO_URI = 'mongodb://' + os.environ['MONGODB_USERNAME'] + ':' + os.environ['MONGODB_PASSWORD'] + '@' + os.environ['MONGODB_HOSTNAME'] + ':27017/' + os.environ['MONGODB_DATABASE']
+connect(host = MONGO_URI)
 
-def create_user(user_id):
-    # Check the user hasn't been created
-    user = db.accounts.find_one({"user_id": user_id})
-    print(user)
+class Stocks(EmbeddedDocument):
+    symbol = StringField(required=True, max_length=3)
+    amount = IntField(required=True)
 
-# Checks if the user exists. Returns None 
-#def user_exists(user_id):
+class AutoTransaction(EmbeddedDocument):
+    symbol = StringField(required=True, max_length=3)
+    amount = IntField(required=True)
+    trigger = DecimalField(requried=True, precision=2)
 
+class Accounts(Document):
+    user_id = StringField(required=True, unique=True)
+    account = DecimalField(default=0.00, precision=2)
+    available = DecimalField(default=0.00, precision=2)
+    stocks = ListField(EmbeddedDocumentField(Stocks), default=[])
+    auto_buy = ListField(EmbeddedDocumentField(AutoTransaction), default=[])
+    auto_sell = ListField(EmbeddedDocumentField(AutoTransaction), default=[])
 
 def get_users():
-    _accounts = db.accounts.find()
-    for account in _accounts:
-        print(account)
-
-connection = Connect.get_connection()
-db = connection.pygangdb
-create_user('test user')
+    for user in Accounts.objects:
+        print(user)
+        print(user.to_json())

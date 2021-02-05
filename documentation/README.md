@@ -19,6 +19,25 @@ Initial Report & Documentation | Jan. 31st, 2021 | [Document](https://github.com
 - The database containing all collections is `pygangdb`
 - The database will persist when run on the same machine as long as the volume is not deleted (see docker-compose file -> mongodb -> volumes)
 
+### Accounts Schema  
+The following is how a user account is stored within MongoDB.
+```json
+{"user_id": "pygang_test_user",
+     "account": 1000.00,
+     "available": 825.00,
+     "stocks": [
+         { "symbol": "ABC", "amount" : 10 },
+         { "symbol": "XYZ", "amount" : 15 }
+     ],
+     "auto_buy": [
+        { "symbol": "ABC", "amount": 5, "trigger": 10.00 },
+        { "symbol": "FOO", "amount": 15, "trigger": 5.00 }
+     ], 
+     "auto_sell": [
+         { "symbol": "XYZ", "amount": 12, "trigger" : 15.00 }
+     ]}
+```
+
 ### To directly interface with the mongo container:
 - `docker-compose up -d` to get the container running in the background
 - `docker exec -it mongodb bash` to run the shell inside the running mongodb container

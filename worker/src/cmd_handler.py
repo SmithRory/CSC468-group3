@@ -1,3 +1,5 @@
+from database.account_dao import Accounts, get_users
+from mongoengine import DoesNotExist
 
 def handle_command(cmd, params):
     
@@ -24,13 +26,52 @@ def handle_command(cmd, params):
     # Call the function to handle the command
     func(params)
 
-# params: user_id,amount
+# params: user_id, amount
 def add(params):
-    print("ADD: ", params)
+    amount = params[1]
+    user_id = params[0]
 
-# params: user_id,stock_symbol
+    # Get the user
+    try:
+        user = Accounts.objects.get(user_id=user_id)
+    except DoesNotExist:
+        # Make the user if they don't exist
+        user = Accounts(user_id=user_id)
+
+    # Update the user accounts
+    user.account = user.account + params[1]
+    user.available = user.available + params[1]
+    
+    # Save the user
+    try:
+        user.save()
+        print("Saved user")
+    except Exception as e:
+        print(e)
+
+# params: user_id, stock_symbol
 def quote(params):
     print("QUOTE: ", params)
+
+    # Get the quote from the stock server
+
+    # Forward the quote to the frontend so the user can see it
+    
+
+# params: user_id, stock_symbol, amount
+def buy(params):
+
+    # Get a quote for the stock the user wants to buy
+
+    # Check if the user has enough available
+
+    # Forward the user the quote and if they have enough money.
+    # They should be propted to commit or cancel the buy command.
+    
+    # Set a timer for one minute. If no commit or cancel has happend
+    # then re issue the quote and present the new stock price to the user.
+
+    print("BUY: ", params)
 
 # params: user_id
 def commit_buy(params):
