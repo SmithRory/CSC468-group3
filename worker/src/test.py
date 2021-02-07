@@ -12,28 +12,25 @@ get_users()
 handler.handle_command('ADD', ['user1', 20.00])
 get_users()
 
-handler.handle_command('BUY', ['user1', 'ABC', 2])
+handler.handle_command('BUY', ['user1', 'ABC', 30.00])
 get_users()
 
 handler.handle_command('COMMIT_BUY', ['user1'])
 get_users()
 
-handler.handle_command('BUY', ['user1', 'ABC', 2])
+handler.handle_command('BUY', ['user1', 'ABC', 20.00])
 
 handler.handle_command('COMMIT_BUY', ['user1'])
 get_users()
 
-handler.handle_command('ADD', ['user2', 20.00])
+handler.handle_command('SELL', ['user1', 'ABC', 15.00])
 get_users()
 
-handler.handle_command('BUY', ['user2', 'ZYZ', 1])
+handler.handle_command('COMMIT_SELL', ['user1'])
 get_users()
 
-handler.handle_command('CANCEL_BUY', ['user2'])
+handler.handle_command('SELL', ['user1', 'ABC', 100.00])
 get_users()
 
-handler.handle_command('BUY', ['user1', 'ABC', 1])
-get_users()
-
-handler.handle_command('BUY', ['user1', 'ABC', 2])
+handler.handle_command('COMMIT_SELL', ['user1'])
 get_users()

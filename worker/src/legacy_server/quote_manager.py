@@ -1,3 +1,3 @@
 
-def get_quote(stock):
-    return 10.00
+def get_quote(stock_symbol, user_id):
+    return 15.00
