@@ -2,12 +2,15 @@ from database.accounts import Accounts, Stocks, AutoTransaction, get_users
 from mongoengine import DoesNotExist
 from legacy_server.quote_manager import get_quote
 from threading import Timer
+from math import floor
 import decimal
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
 # Helpful Doc https://docs.mongoengine.org/guide/querying.html#atomic-updates
 
 # TODO: split this up more nicely
+
+# TODO: logging
 
 class CMDHandler:
 
@@ -64,13 +67,20 @@ class CMDHandler:
 
         user_id = params[0]
         stock_symbol = params[1]
-        amount = params[2]
+        max_debt = float(params[2]) # Maximum dollar amount of the transaction
 
         # Get a quote for the stock the user wants to buy
         quote = get_quote(stock_symbol)
 
+        # Find the number of stocks the user can buy
+        num_stocks = floor(max_debt/quote) # Ex. max_dept=$100,quote=$15per/stock-> num_stocks=6
+        if num_stocks==0:
+            # Notify the user the stock costs more than the amount given.
+            print(f"The price of stock {stock_symbol} ({quote}) is more than the amount requested ({max_debt}).")
+            return
+        
         # Check if the user has enough available
-        trans_price = quote*amount
+        trans_price = quote*num_stocks
         funds_available = Accounts.objects.get(user_id=user_id).available
         if trans_price > funds_available:
             # Notify the user they don't have enough available funds.
@@ -78,13 +88,11 @@ class CMDHandler:
             return
 
         # Forward the user the quote, prompt user to commit or cancel the buy command.
-        print(f'Purchace price ({stock_symbol}): ${trans_price}\nPlease issue COMMIT_BUY or COMMIT_CANCEL to complete the transaction.')
+        print(f'Purchace price ({stock_symbol}): ${quote} per stock x {num_stocks} stocks = ${trans_price}\nPlease issue COMMIT_BUY or COMMIT_CANCEL to complete the transaction.')
         
         # Add the uncommited buy to the list.
-        print('Before ', self.uncommitted_buys)
-        uncommitted_buy = {user_id: {'stock': stock_symbol, 'amount': amount, 'quote': quote}}
+        uncommitted_buy = {user_id: {'stock': stock_symbol, 'num_stocks': num_stocks, 'quote': quote, 'amount': max_debt}}
         self.uncommitted_buys.update(uncommitted_buy)
-        print('After: ', self.uncommitted_buys)
         
         # Cancel any previous timers for this user. There can only be one pending buy at a time.
         previous_timer = self.uncommitted_buy_timers.pop(user_id, None)
@@ -132,7 +140,7 @@ class CMDHandler:
         # Complete the transaction.
         # Deduct the cost of the purchase.
         user_account = Accounts.objects.get(user_id=user_id)
-        cost = decimal.Decimal(users_buy['amount'] * users_buy['quote'])
+        cost = decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
         user_account.account = user_account.account - cost
         user_account.available = user_account.available - cost
         
@@ -142,11 +150,11 @@ class CMDHandler:
             user_stock = user_account.stocks.get(symbol=users_buy['stock'])
         except DoesNotExist:
             # Create a new stock
-            new_stock = Stocks(symbol=users_buy['stock'], amount=users_buy['amount'])      
+            new_stock = Stocks(symbol=users_buy['stock'], amount=users_buy['num_stocks'])      
             user_account.stocks.append(new_stock)
         else:
             # Increment the amount of stock
-            user_stock.amount = user_stock.amount + users_buy['amount']
+            user_stock.amount = user_stock.amount + users_buy['num_stocks']
 
         # Save the document.
         user_account.save()
