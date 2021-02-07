@@ -12,6 +12,10 @@ import decimal
 
 # TODO: logging
 
+# TODO: check the user exists before executing commands (this is only being done for the ADD so far)
+
+# TODO: turn dictionaries into cache 
+
 class CMDHandler:
 
     def __init__(self):
@@ -50,7 +54,6 @@ class CMDHandler:
 
         # Notify the user
         print(f"Successfully added ${amount} to account.")
-        
 
     # params: user_id, stock_symbol
     def quote(self, params):
@@ -64,7 +67,6 @@ class CMDHandler:
 
         # Forward the quote to the frontend so the user can see it
         print(f"{stock_symbol} has value {value}")
-        
 
     # params: user_id, stock_symbol, amount
     def buy(self, params):
@@ -325,18 +327,44 @@ class CMDHandler:
     def set_buy_amount(self, params):
         print("SET_BUY_AMOUNT: ", params)
 
-        # Check the user's account has enough money
+        user_id = params[0]
+        stock_symbol = params[1]
+        buy_amount = round(params[2]) # Can only buy a whole number of shares.
 
-        # Deduct money from the available account
         # Add the stock and amount to the user's auto_buy list
 
-    # params: user_id, stock_symbol
-    def cancel_set_buy(self, params):
-        print("CANCEL_SET_BUY: ", params)
+        users_account = Accounts.objects.get(user_id=user_id)
+        users_auto_buy = None
+        try:
+            # Check if an auto buy already exists for this stock
+            users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
+        except DoesNotExist:
+            # Create the auto_buy embedded document for this stock.
+            new_auto_buy = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=buy_amount)
+            users_account.auto_buy.append(new_auto_buy)
+        else:
+            # Update the auto buy amount, reset the buy trigger.
+            users_auto_buy.amount = buy_amount
+            users_auto_buy.trigger = 0.00
+
+        # Save the document.
+        users_account.save()
+
+        # Notify the user.
+        print(f"Successful set to buy {buy_amount} stocks of {stock_symbol} automatically. Please issue SET_BUY_TRIGGER to set the trigger price.")
+
 
     # params: user_id, stock_symbol, amount
     def set_buy_trigger(self, params):
         print("SET_BUY_TRIGGER: ", params)
+
+        # Check the user's account has enough money available.
+
+        # Deduct money from the available account
+
+    # params: user_id, stock_symbol
+    def cancel_set_buy(self, params):
+        print("CANCEL_SET_BUY: ", params)
 
     # params: user_id, stock_symbol, amount
     def set_sell_amount(self, params):
