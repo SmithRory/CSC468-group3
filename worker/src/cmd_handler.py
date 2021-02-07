@@ -1,8 +1,11 @@
 from database.accounts import Accounts, Stocks, AutoTransaction, get_users
 from mongoengine import DoesNotExist
-from legacy_server.quote_manager import get_quote
 from threading import Timer
+<<<<<<< HEAD
 from math import floor
+=======
+from legacy import quote, quote_cache
+>>>>>>> manager-development
 import decimal
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
@@ -56,9 +59,14 @@ class CMDHandler:
     def quote(self, params):
         print("QUOTE: ", params)
 
+        user_id = params[0]
+        stock_symbol = params[1]
+
         # Get the quote from the stock server
+        value = quote.get_quote(user_id, stock_symbol)
 
         # Forward the quote to the frontend so the user can see it
+        print(f"{stock_symbol} has value {value}")
         
 
     # params: user_id, stock_symbol, amount
@@ -70,7 +78,7 @@ class CMDHandler:
         max_debt = float(params[2]) # Maximum dollar amount of the transaction
 
         # Get a quote for the stock the user wants to buy
-        quote = get_quote(stock_symbol)
+        value = quote.get_quote(user_id, stock_symbol)
 
         # Find the number of stocks the user can buy
         num_stocks = floor(max_debt/quote) # Ex. max_dept=$100,quote=$15per/stock-> num_stocks=6
