@@ -1,11 +1,8 @@
 from database.accounts import Accounts, Stocks, AutoTransaction, get_users
 from mongoengine import DoesNotExist
 from threading import Timer
-<<<<<<< HEAD
 from math import floor
-=======
 from legacy import quote, quote_cache
->>>>>>> manager-development
 import decimal
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
@@ -81,14 +78,14 @@ class CMDHandler:
         value = quote.get_quote(user_id, stock_symbol)
 
         # Find the number of stocks the user can buy
-        num_stocks = floor(max_debt/quote) # Ex. max_dept=$100,quote=$15per/stock-> num_stocks=6
+        num_stocks = floor(max_debt/value) # Ex. max_dept=$100,value=$15per/stock-> num_stocks=6
         if num_stocks==0:
             # Notify the user the stock costs more than the amount given.
-            print(f"The price of stock {stock_symbol} ({quote}) is more than the amount requested ({max_debt}).")
+            print(f"The price of stock {stock_symbol} ({value}) is more than the amount requested ({max_debt}).")
             return
         
         # Check if the user has enough available
-        trans_price = quote*num_stocks
+        trans_price = value*num_stocks
         funds_available = Accounts.objects.get(user_id=user_id).available
         if trans_price > funds_available:
             # Notify the user they don't have enough available funds.
@@ -96,10 +93,10 @@ class CMDHandler:
             return
 
         # Forward the user the quote, prompt user to commit or cancel the buy command.
-        print(f'Purchace price ({stock_symbol}): ${quote} per stock x {num_stocks} stocks = ${trans_price}\nPlease issue COMMIT_BUY or CANCEL_BUY to complete the transaction.')
+        print(f'Purchace price ({stock_symbol}): ${value} per stock x {num_stocks} stocks = ${trans_price}\nPlease issue COMMIT_BUY or CANCEL_BUY to complete the transaction.')
         
         # Add the uncommitted buy to the list.
-        uncommitted_buy = {user_id: {'stock': stock_symbol, 'num_stocks': num_stocks, 'quote': quote, 'amount': max_debt}}
+        uncommitted_buy = {user_id: {'stock': stock_symbol, 'num_stocks': num_stocks, 'quote': value, 'amount': max_debt}}
         self.uncommitted_buys.update(uncommitted_buy)
         
         # Cancel any previous timers for this user. There can only be one pending buy at a time.
@@ -202,7 +199,7 @@ class CMDHandler:
         sell_amount = params[2] # dollar amount of the stock to sell
 
         # Get a quote for the stock the user wants to buy
-        quote = get_quote(stock_symbol)
+        value = quote.get_quote(user_id, stock_symbol)
 
         # Find the number of stocks the user owns.
         user_account = Accounts.objects.get(user_id=user_id)
@@ -215,17 +212,17 @@ class CMDHandler:
             return
 
         # Check if the user has enough of the given stock.
-        num_to_sell = floor(sell_amount/quote)
+        num_to_sell = floor(sell_amount/value)
         if num_to_sell > users_stock.amount:
             # The user does not own enough of this stock
             print(f"Insufficent number of stocks owned. Stocks needed ({num_to_sell}), stocks owned ({users_stock.amount}).")
             return
 
         # Forward the user the transaction info, prompt user to commit or cancel the buy command.
-        print(f'Selling price ({stock_symbol}): ${quote} per stock x {num_to_sell} stocks = ${quote*num_to_sell}\nPlease issue COMMIT_SELL or CANCEL_SELL to complete the transaction.')
+        print(f'Selling price ({stock_symbol}): ${value} per stock x {num_to_sell} stocks = ${value*num_to_sell}\nPlease issue COMMIT_SELL or CANCEL_SELL to complete the transaction.')
 
         # Add the uncommitted sell to the list.
-        uncommitted_sell = {user_id: {'stock': stock_symbol, 'num_stocks': num_to_sell, 'quote': quote, 'amount': sell_amount}}
+        uncommitted_sell = {user_id: {'stock': stock_symbol, 'num_stocks': num_to_sell, 'quote': value, 'amount': sell_amount}}
         self.uncommitted_sells.update(uncommitted_sell)
 
         # Cancel any previous timers for this user. There can only be one pending sell at a time.
