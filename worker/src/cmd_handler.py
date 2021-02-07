@@ -1,136 +1,263 @@
-from database.account_dao import Accounts, get_users
+from database.accounts import Accounts, Stocks, AutoTransaction, get_users
 from mongoengine import DoesNotExist
+from threading import Timer
+from legacy import quote, quote_cache
+import decimal
 
-def handle_command(cmd, params):
+# TODO: perform atomic updates instead of querying document, modifying it, and then saving it
+# Helpful Doc https://docs.mongoengine.org/guide/querying.html#atomic-updates
+
+# TODO: split this up more nicely
+
+class CMDHandler:
+
+    def __init__(self):
+        self.uncommitted_buys = {} # which users have a pending buy, and the transaction info
+        self.uncommitted_buy_timers = {} # the timer for each pending buy
+        self.uncommitted_sells = {}
+        self.uncommited_sell_timers = {}
     
-    switch = {
-        "ADD": add,
-        "QUOTE": quote,
-        "COMMIT_BUY": commit_buy,
-        "CANCEL_BUY": cancel_buy,
-        "SELL": sell,
-        "COMMIT_SELL": commit_sell,
-        "CANCEL_SELL": cancel_sell,
-        "SET_BUY_AMOUNT": set_buy_amount, 
-        "CANCEL_SET_BUY": cancel_set_buy,
-        "SET_BUY_TRIGGER": set_buy_trigger,
-        "SET_SELL_AMOUNT": set_sell_amount,
-        "SET_SELL_TRIGGER": set_sell_trigger,
-        "CANCEL_SET_SELL": cancel_set_sell,
-        "DUMPLOG": dumplog,
-        "DISPLAY_SUMMARY": display_summary
-    }
-    
-    # Get the function
-    func = switch.get(cmd, unknown_cmd)
-    # Call the function to handle the command
-    func(params)
+    # params: user_id, amount
+    def add(self, params):
+        amount = params[1]
+        user_id = params[0]
 
-# params: user_id, amount
-def add(params):
-    amount = params[1]
-    user_id = params[0]
+        # Get the user
+        # Note: user.account will return a 'float' if the user
+        # has not been created, and 'decimal.Decimal` if they have been.
+        try:
+            user = Accounts.objects.get(user_id=user_id)
+        except DoesNotExist:
+            # Create the user if they don't exist
+            # Add into the accounts
+            user = Accounts(user_id=user_id)
+            user.account = user.account + amount
+            user.available = user.available + amount
+        else:
+            # Update the account.
+            user.account = user.account + decimal.Decimal(amount)
+            user.available = user.available + decimal.Decimal(amount)
 
-    # Get the user
-    try:
-        user = Accounts.objects.get(user_id=user_id)
-    except DoesNotExist:
-        # Make the user if they don't exist
-        user = Accounts(user_id=user_id)
+        # Save the user
+        try:
+            user.save()
+        except Exception as e:
+            # Let user know of the error
+            print(e)
 
-    # Update the user accounts
-    user.account = user.account + params[1]
-    user.available = user.available + params[1]
-    
-    # Save the user
-    try:
-        user.save()
-        print("Saved user")
-    except Exception as e:
-        print(e)
+        # Notify the user
+        print(f"Successfully added ${amount} to account.")
+        
 
-# params: user_id, stock_symbol
-def quote(params):
-    print("QUOTE: ", params)
+    # params: user_id, stock_symbol
+    def quote(self, params):
+        print("QUOTE: ", params)
 
-    # Get the quote from the stock server
+        user_id = params[0]
+        stock_symbol = params[1]
 
-    # Forward the quote to the frontend so the user can see it
-    
+        # Get the quote from the stock server
+        value = quote.get_quote(user_id, stock_symbol)
 
-# params: user_id, stock_symbol, amount
-def buy(params):
+        # Forward the quote to the frontend so the user can see it
+        print(f"{stock_symbol} has value {value}")
+        
 
-    # Get a quote for the stock the user wants to buy
+    # params: user_id, stock_symbol, amount
+    def buy(self, params):
+        print("BUY: ", params)
 
-    # Check if the user has enough available
+        user_id = params[0]
+        stock_symbol = params[1]
+        amount = params[2]
 
-    # Forward the user the quote and if they have enough money.
-    # They should be propted to commit or cancel the buy command.
-    
-    # Set a timer for one minute. If no commit or cancel has happend
-    # then re issue the quote and present the new stock price to the user.
+        # Get a quote for the stock the user wants to buy
+        value = quote.get_quote(user_id, stock_symbol)
 
-    print("BUY: ", params)
+        # Check if the user has enough available
+        trans_price = value*amount
+        funds_available = Accounts.objects.get(user_id=user_id).available
+        if trans_price > funds_available:
+            # Notify the user they don't have enough available funds.
+            print("Insufficent funds to purchase stock.")
+            return
 
-# params: user_id
-def commit_buy(params):
-    print("COMMIT_BUY: ", params)
+        # Forward the user the quote, prompt user to commit or cancel the buy command.
+        print(f'Purchace price ({stock_symbol}): ${trans_price}\nPlease issue COMMIT_BUY or COMMIT_CANCEL to complete the transaction.')
+        
+        # Add the uncommited buy to the list.
+        print('Before ', self.uncommitted_buys)
+        uncommitted_buy = {user_id: {'stock': stock_symbol, 'amount': amount, 'quote': value}}
+        self.uncommitted_buys.update(uncommitted_buy)
+        print('After: ', self.uncommitted_buys)
+        
+        # Cancel any previous timers for this user. There can only be one pending buy at a time.
+        previous_timer = self.uncommitted_buy_timers.pop(user_id, None)
+        if previous_timer is not None:
+            previous_timer.cancel()
 
-# params: user_id
-def cancel_buy(params):
-    print("CANCEL_BUY: ", params)
+        # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
+        commit_timer = Timer(60.0, self.buy_timeout_handler, [user_id]) # 60 seconds
+        commit_timer.start()
+        self.uncommitted_buy_timers.update({user_id: commit_timer})        
 
-# params: user_id, stock_symbol, amount
-def sell(params):
-    print("SELL: ", params)
+    # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
+    def buy_timeout_handler(self, user_id):
 
-# params: user_id
-def commit_sell(params):
-    print("COMMIT_SELL: ", params)
+        # Remove the timer
+        self.uncommitted_buy_timers.pop(user_id, None)
+        
+        # Remove the pending buy
+        users_buy = self.uncommitted_buys.pop(user_id, None)
 
-# params: user_id
-def cancel_sell(params):
-    print("CANCEL_SELL: ", params)
+        # Notify the user their BUY has expired.
+        print("The BUY command has expired and will be re-issued.")
 
-# params: user_id, stock_symbol, amount
-def set_buy_amount(params):
-    print("SET_BUY_AMOUNT: ", params)
+        # Re-issue the buy command.
+        self.buy([user_id, users_buy['stock'], users_buy['amount']])
 
-# params: user_id, stock_symbol
-def cancel_set_buy(params):
-    print("CANCEL_SET_BUY: ", params)
+    # params: user_id
+    def commit_buy(self, params):
+        print("COMMIT_BUY: ", params)
+        
+        user_id = params[0]
 
-# params: user_id, stock_symbol, amount
-def set_buy_trigger(params):
-    print("SET_BUY_TRIGGER: ", params)
+        # Check to see if the user has issued a buy command.
+        users_buy = self.uncommitted_buys.pop(user_id, None)
+        if users_buy is None:
+            # Must issue a BUY command first
+            print("Invalid command. A BUY command has not been issued.")
+            return
 
-# params: user_id, stock_symbol, amount
-def set_sell_amount(params):
-    print("SET_SELL_AMOUNT: ", params)
+        # Cancel the commit timer
+        commit_timer = self.uncommitted_buy_timers.pop(user_id, None)
+        if commit_timer is not None:
+            commit_timer.cancel()
 
-# params: user_id, stock_symbol, amount
-def set_sell_trigger(params):
-    print("SET_SELL_TRIGGER: ", params)
+        # Complete the transaction.
+        # Deduct the cost of the purchase.
+        user_account = Accounts.objects.get(user_id=user_id)
+        cost = decimal.Decimal(users_buy['amount'] * users_buy['quote'])
+        user_account.account = user_account.account - cost
+        user_account.available = user_account.available - cost
+        
+        # Check if they already have some of this stock
+        user_stocks = None
+        try:
+            user_stock = user_account.stocks.get(symbol=users_buy['stock'])
+        except DoesNotExist:
+            # Create a new stock
+            new_stock = Stocks(symbol=users_buy['stock'], amount=users_buy['amount'])      
+            user_account.stocks.append(new_stock)
+        else:
+            # Increment the amount of stock
+            user_stock.amount = user_stock.amount + users_buy['amount']
 
-# params: user_id, stock_symbol
-def cancel_set_sell(params):
-    print("CANCEL_SET_SELL: ", params)
+        # Save the document.
+        user_account.save()
 
-# params: user_id(optional), filename
-def dumplog(params):
-    print("DUMPLOG: ", params)
+        # Notify the user.
+        print("Successfully purchased stock.")
 
-# params: user_id
-def display_summary(params):
-    print("DISPLAY_SUMMARY: ", params)
+    # params: user_id
+    def cancel_buy(self, params):
+        print("CANCEL_BUY: ", params)
+        
+        user_id = params[0]
 
-def unknown_cmd(params):
-    print("UNKNOWN COMMAND!")
-    
-# Should only be used for testing.
-if __name__ == "__main__":
-    command = "SELL"
-    parameters = ("oY01WVirLr", "S", 641.90)
-    handle_command(command, parameters)
+        #Check to see if the user has issued a buy command.
+        users_buy = self.uncommitted_buys.pop(user_id, None)
+        if users_buy is None:
+            # Must issue a BUY command first
+            print("Invalid command. A BUY command has not been issued.")
+            return
 
+        # Cancel the commit timer
+        commit_timer = self.uncommitted_buy_timers.pop(user_id, None)
+        if commit_timer is not None:
+            commit_timer.cancel()
+
+        # Notify the user.
+        print("Successfully cancelled stock purchase.")
+
+    # params: user_id, stock_symbol, amount
+    def sell(self, params):
+        print("SELL: ", params)
+
+        # Check if the user has enough of the given stock.
+
+        # Ask the user to commit or cancel the transaction.
+
+    # params: user_id
+    def commit_sell(self, params):
+        print("COMMIT_SELL: ", params)
+
+    # params: user_id
+    def cancel_sell(self, params):
+        print("CANCEL_SELL: ", params)
+
+    # params: user_id, stock_symbol, amount
+    def set_buy_amount(self, params):
+        print("SET_BUY_AMOUNT: ", params)
+
+        # Check the user's account has enough money
+
+        # Deduct money from the available account
+        # Add the stock and amount to the user's auto_buy list
+
+    # params: user_id, stock_symbol
+    def cancel_set_buy(self, params):
+        print("CANCEL_SET_BUY: ", params)
+
+    # params: user_id, stock_symbol, amount
+    def set_buy_trigger(self, params):
+        print("SET_BUY_TRIGGER: ", params)
+
+    # params: user_id, stock_symbol, amount
+    def set_sell_amount(self, params):
+        print("SET_SELL_AMOUNT: ", params)
+
+    # params: user_id, stock_symbol, amount
+    def set_sell_trigger(self, params):
+        print("SET_SELL_TRIGGER: ", params)
+
+    # params: user_id, stock_symbol
+    def cancel_set_sell(self, params):
+        print("CANCEL_SET_SELL: ", params)
+
+    # params: user_id(optional), filename
+    def dumplog(self, params):
+        print("DUMPLOG: ", params)
+
+    # params: user_id
+    def display_summary(self, params):
+        print("DISPLAY_SUMMARY: ", params)
+
+    def unknown_cmd(self, params):
+        print("UNKNOWN COMMAND!")
+
+    def handle_command(self, cmd, params):
+        
+        switch = {
+            "ADD": self.add,
+            "QUOTE": self.quote,
+            "BUY": self.buy,
+            "COMMIT_BUY": self.commit_buy,
+            "CANCEL_BUY": self.cancel_buy,
+            "SELL": self.sell,
+            "COMMIT_SELL": self.commit_sell,
+            "CANCEL_SELL": self.cancel_sell,
+            "SET_BUY_AMOUNT": self.set_buy_amount, 
+            "CANCEL_SET_BUY": self.cancel_set_buy,
+            "SET_BUY_TRIGGER": self.set_buy_trigger,
+            "SET_SELL_AMOUNT": self.set_sell_amount,
+            "SET_SELL_TRIGGER": self.set_sell_trigger,
+            "CANCEL_SET_SELL": self.cancel_set_sell,
+            "DUMPLOG": self.dumplog,
+            "DISPLAY_SUMMARY": self.display_summary
+        }
+        
+        # Get the function
+        func = switch.get(cmd, self.unknown_cmd)
+        # Call the function to handle the command
+        func(params)
