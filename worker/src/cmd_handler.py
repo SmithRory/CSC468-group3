@@ -281,7 +281,7 @@ class CMDHandler:
             users_stock = users_account.stocks.get(symbol=users_sell['stock'])
         except DoesNotExist:
             # This should never happen.
-            print("Error. Stocks not found in users account.")
+            print(f"Error. Stock {users_sell['stock']} not found in users account.")
             return
         
         if users_stock.amount == users_sell['num_stocks']:
@@ -392,6 +392,27 @@ class CMDHandler:
     # params: user_id, stock_symbol
     def cancel_set_buy(self, params):
         print("CANCEL_SET_BUY: ", params)
+
+        user_id = params[0]
+        stock_symbol = params[1]
+
+        # Check to see if the user has an auto buy for this stock.
+        users_account = Accounts.objects.get(user_id=user_id)
+        users_auto_buy = None
+        try:
+            users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
+        except DoesNotExist:
+            # User hasn't set up and auto buy.
+            print(f"Invalid command. No auto buy setup for stock {stock_symbol}.")
+            return
+
+        # Remove the auto buy. Add the reserved funds.
+        users_account.auto_buy.remove(users_auto_buy)
+        users_account.available = users_account.available + decimal.Decimal(users_auto_buy.amount * users_auto_buy.trigger)
+        users_account.save()
+
+        # Notify user.
+        print(f"Successfully cancelled the auto buy for stock {stock_symbol}.")
 
     # params: user_id, stock_symbol, amount
     def set_sell_amount(self, params):

@@ -9,6 +9,7 @@ class Stocks(me.EmbeddedDocument):
     amount = me.IntField(required=True)
 
 class AutoTransaction(me.EmbeddedDocument):
+    user_id = me.StringField(required=True) # Should help to have this field here when querying.
     symbol = me.StringField(required=True, max_length=3)
     amount = me.IntField(required=True)
     trigger = me.DecimalField(default=0.00, precision=2)
