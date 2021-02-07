@@ -4,11 +4,13 @@ import os
 import pika
 import queue
 import time
-from rabbitmq.consumer import Consumer
 from threading import Thread
 
-print("Start of file")
-sys.stdout.flush()
+from rabbitmq.consumer import Consumer
+from legacy import quote_cache
+import cmd_handler
+
+quote_cache.cache.append("TEST")
 
 # Handles exiting when SIGTERM (sent by ^C input) is received 
 # in a gracefull way. Main loop will only exit after a completed iteration
@@ -28,14 +30,14 @@ rabbit_queue = Consumer(
     routing_key='backend_queue'
 )
 
+cmd_handler.handle_command("QUOTE", ("temp", "temp"))
+
 if __name__ == "__main__":
     t_consumer = Thread(target=rabbit_queue.run)
     t_consumer.start()
 
-    print("Started consumer thread")
-    sys.stdout.flush()
-
     while not EXIT_PROGRAM:
+        pass
         if not message_queue.empty():
             print(f"Message: {message_queue.get()}")
             sys.stdout.flush()

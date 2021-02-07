@@ -73,3 +73,6 @@ class Consumer():
     def queue_callback(self, ch, method, properties, body):
         ch.basic_ack(delivery_tag=method.delivery_tag)
         self._commands.put(body.decode())
+
+        print(f"Message: {body.decode()}")
+        sys.stdout.flush()

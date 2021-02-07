@@ -43,7 +43,7 @@ services:
       - MONGODB_PASSWORD=pygang_worker
       - MONGODB_HOSTNAME=mongodb
     depends_on:
-      # - mongodb
+      - mongodb
       - rabbitmq
     # networks:
     #   - mongodb
@@ -63,20 +63,20 @@ services:
       - 5672:5672
       - 15672:15672
 
-  # mongodb:
-  #   image: mongo
-  #   container_name: mongodb
-  #   restart: unless-stopped
-  #   command: mongod --auth
-  #   environment:
-  #     MONGO_INITDB_ROOT_USERNAME: pygang_root
-  #     MONGO_INITDB_ROOT_PASSWORD: pygang_root
-  #     MONGO_INITDB_DATABASE: pygangdb
-  #     MONGODB_DATA_DIR: /data/db
-  #     MONGODB_LOG_DIR: /dev/null
-  #   volumes:
-  #    - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-  #    - mongo-data:/data/db
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    restart: unless-stopped
+    command: mongod --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: pygang_root
+      MONGO_INITDB_ROOT_PASSWORD: pygang_root
+      MONGO_INITDB_DATABASE: pygangdb
+      MONGODB_DATA_DIR: /data/db
+      MONGODB_LOG_DIR: /dev/null
+    volumes:
+     - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+     - mongo-data:/data/db
     # networks:
     #   - mongodb
 
@@ -84,6 +84,6 @@ services:
 #   mongodb:
 #     driver: bridge # Allows the worker to communicate w/ mongo w/o exposing ports.
 
-# volumes:
-#   mongo-data:
-#     driver: local
+volumes:
+  mongo-data:
+    driver: local
