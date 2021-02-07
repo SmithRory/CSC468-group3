@@ -2,6 +2,7 @@ import sys
 import os
 import socket
 import time
+# import parser
 
 QUOTE_ADDRESS = "quoteserver.seng.uvic.ca"
 PORT = int(os.environ['QUOTE_SERVER_PORT'])
@@ -19,4 +20,8 @@ def get_quote(uid : str, stock : str) -> float:
     s.send(command.encode('utf-8'))
     data = s.recv(1024)
 
-    return data.decode('utf-8')
+    temp = 1.0
+
+    #TODO figure out and parse result from quote server
+    # parsed_commands = command_parse(data.decode('utf-8'))
+    return temp

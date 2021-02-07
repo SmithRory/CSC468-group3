@@ -1,7 +1,7 @@
 from database.accounts import Accounts, Stocks, AutoTransaction, get_users
 from mongoengine import DoesNotExist
-from legacy_server.quote_manager import get_quote
 from threading import Timer
+from legacy import quote, quote_cache
 import decimal
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
@@ -53,9 +53,14 @@ class CMDHandler:
     def quote(self, params):
         print("QUOTE: ", params)
 
+        user_id = params[0]
+        stock_symbol = params[1]
+
         # Get the quote from the stock server
+        value = quote.get_quote(user_id, stock_symbol)
 
         # Forward the quote to the frontend so the user can see it
+        print(f"{stock_symbol} has value {value}")
         
 
     # params: user_id, stock_symbol, amount
@@ -67,10 +72,10 @@ class CMDHandler:
         amount = params[2]
 
         # Get a quote for the stock the user wants to buy
-        quote = get_quote(stock_symbol)
+        value = quote.get_quote(user_id, stock_symbol)
 
         # Check if the user has enough available
-        trans_price = quote*amount
+        trans_price = value*amount
         funds_available = Accounts.objects.get(user_id=user_id).available
         if trans_price > funds_available:
             # Notify the user they don't have enough available funds.
@@ -82,7 +87,7 @@ class CMDHandler:
         
         # Add the uncommited buy to the list.
         print('Before ', self.uncommitted_buys)
-        uncommitted_buy = {user_id: {'stock': stock_symbol, 'amount': amount, 'quote': quote}}
+        uncommitted_buy = {user_id: {'stock': stock_symbol, 'amount': amount, 'quote': value}}
         self.uncommitted_buys.update(uncommitted_buy)
         print('After: ', self.uncommitted_buys)
         
