@@ -353,14 +353,41 @@ class CMDHandler:
         # Notify the user.
         print(f"Successful set to buy {buy_amount} stocks of {stock_symbol} automatically. Please issue SET_BUY_TRIGGER to set the trigger price.")
 
-
     # params: user_id, stock_symbol, amount
     def set_buy_trigger(self, params):
         print("SET_BUY_TRIGGER: ", params)
 
+        user_id = params[0]
+        stock_symbol = params[1]
+        buy_trigger = params[2]
+
+        # Check the user has issued a SET_BUY_AMOUNT for the given stock.
+        users_account = Accounts.objects.get(user_id=user_id)
+        users_auto_buy = None
+        try:
+            users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
+        except DoesNotExist:
+            # No SET_BUY_AMOUNT issued.
+            print(f"Invalid command. A SET_BUY_AMOUNT must be issued for stock {stock_symbol} before a trigger can be set.")
+            return
+
         # Check the user's account has enough money available.
+        transaction_price = round(buy_trigger * users_auto_buy.amount, 2)
+        if transaction_price > users_account.available:
+            # Insufficent funds.
+            print(f"Invalid buy trigger. Insufficent funds for an auto buy. Funds available (${users_account.available}), auto buy cost (${transaction_price}).")
+            return
+
+        # Set the auto buy trigger.
+        users_auto_buy.trigger = buy_trigger
 
         # Deduct money from the available account
+        users_account.available = users_account.available - decimal.Decimal(transaction_price)
+
+        users_account.save()
+
+        # Notify user.
+        print(f"Successfully set an auto buy for {users_auto_buy.amount} stocks of {stock_symbol} at ${buy_trigger} per stock.")
 
     # params: user_id, stock_symbol
     def cancel_set_buy(self, params):
