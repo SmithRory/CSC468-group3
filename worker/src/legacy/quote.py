@@ -15,6 +15,8 @@ except:
     sys.stdout.flush()
 
 def get_quote(uid : str, stock : str) -> float:
+    return 100.0
+
     command = f'QUOTE,{uid},{stock}\n'
 
     s.send(command.encode('utf-8'))

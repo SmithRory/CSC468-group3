@@ -4,10 +4,6 @@ import os
 import pika
 import queue
 import time
-
-print(dir(sys))
-sys.stdout.flush()
-
 from threading import Thread
 from rabbitmq.consumer import Consumer
 from legacy.parser import command_parse
@@ -40,6 +36,7 @@ if __name__ == "__main__":
     while not EXIT_PROGRAM:
         if not message_queue.empty():
             result = command_parse(message_queue.get())
+            print(f"result: {result}")
             command_handler.handle_command(result[0], result[1])
             sys.stdout.flush()
 
