@@ -1,7 +1,5 @@
 import xmlschema as xs
 from xml.etree.ElementTree import ElementTree
-import os
-import uuid
 
 # if __name__ == "__main__":
 #     schema = xs.XMLSchema('logfile.xsd')
@@ -21,9 +19,7 @@ import uuid
 # send json_data as a string of json values, can change if db returns as a file
 # creates an xml log file in the LogFile folder
 
-def convertLogFile(json_data : str):
+def convertLogFile(json_data : str, output_file : str):
     schema = xs.XMLSchema('logfile.xsd')
     xml_data = xs.from_json(json_data,schema=schema)
-    id = str(uuid.uuid1())
-    filename = "log_" + id + ".xml" # to avoid replacing and loosing older log files
-    ElementTree(xml_data).write(os.path.join(filename))
+    ElementTree(xml_data).write(output_file)
