@@ -3,6 +3,7 @@ from mongoengine import DoesNotExist
 from threading import Timer
 from legacy import quote, quote_cache
 from LogFile import log_handler
+from database.logs import get_logs
 
 import decimal
 
@@ -231,7 +232,7 @@ class CMDHandler:
     def dumplog(self, params):
         # use user_id here to get data from databaseCA
         filename = params[0]
-        json_data = "{}" #this will be logs we get from the database
+        json_data = get_logs() #this will be logs we get from the database
         log_handler.convertLogFile(json_data, filename)
 
         print("DUMPLOG: ", filename)
