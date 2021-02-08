@@ -7,7 +7,4 @@ Werkzeug==1.0.1
 mongoengine==0.22.1
 pika==1.1.0
 xmlschema==1.1
-elementpath
-uuid
-xmlschema==1.1
-elementpath
+elementpath==2.1.3
