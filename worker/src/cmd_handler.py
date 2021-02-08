@@ -26,6 +26,10 @@ class CMDHandler:
         self.uncommitted_sells = {}
         self.uncommitted_sell_timers = {}
         self.pending_sell_triggers = {} # Holds pending auto sells until a sell trigger is given.
+
+        self.POLLING_RATE = 1
+        self.quote_polling_timers = {}
+        self.user_polling_stocks = {} # { 'stock_symbol' : { 'auto_buy': ['user1', 'user2'], 'auto_sell': ['user1', 'user2'] } }
     
     # params: user_id, amount
     def add(self, params):
@@ -70,6 +74,17 @@ class CMDHandler:
 
         # Forward the quote to the frontend so the user can see it
         print(f"{stock_symbol} has value {value}")
+
+    def quote_update_handler(self, stock_symbol):
+        value = quote.get_quote('polling', stock_symbol)
+
+        for user_id in self.user_polling_stocks[stock_symbol]['auto_buy']:
+            pass
+
+        for user_id in self.user_polling_stocks[stock_symbol]['auto_sell']:
+            pass
+
+
 
     # params: user_id, stock_symbol, amount
     def buy(self, params):
