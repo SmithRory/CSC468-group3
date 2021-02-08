@@ -1,4 +1,4 @@
-from database.accounts import Accounts, Stocks, AutoTransaction, get_users
+from database.accounts import Accounts, Stocks, AutoTransaction, get_users, auto_buy_handler, auto_sell_handler
 from mongoengine import DoesNotExist
 from threading import Timer
 from math import floor
@@ -79,12 +79,16 @@ class CMDHandler:
         value = quote.get_quote('polling', stock_symbol)
 
         for user_id in self.user_polling_stocks[stock_symbol]['auto_buy']:
-            pass
+            # Get all users that have auto_buy stocks.
+
+            # Do the auto buys.
+            auto_buy_handler(user_id, stock_symbol)
 
         for user_id in self.user_polling_stocks[stock_symbol]['auto_sell']:
-            pass
+            # Get all users that have auto sell stocks.
 
-
+            # Do the auto sells.
+            auto_buy_handler(user_id, stock_symbol)
 
     # params: user_id, stock_symbol, amount
     def buy(self, params):
