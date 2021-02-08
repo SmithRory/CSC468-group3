@@ -3,6 +3,8 @@ from mongoengine import DoesNotExist
 from threading import Timer
 from math import floor
 from legacy import quote, quote_cache
+from LogFile import log_handler
+
 import decimal
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
@@ -426,9 +428,14 @@ class CMDHandler:
     def cancel_set_sell(self, params):
         print("CANCEL_SET_SELL: ", params)
 
-    # params: user_id(optional), filename
+    # params: filename, user_id(optional)
     def dumplog(self, params):
-        print("DUMPLOG: ", params)
+        # use user_id here to get data from databaseCA
+        filename = params[0]
+        json_data = "{}" #this will be logs we get from the database
+        log_handler.convertLogFile(json_data, filename)
+
+        print("DUMPLOG: ", filename)
 
     # params: user_id
     def display_summary(self, params):

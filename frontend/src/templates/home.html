@@ -3,55 +3,44 @@
 <body>
 <h3>Manage your day trading account</h3>
 
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#">Navbar</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="#">Get Stock Quote</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="#">Add money</a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Trade Shares
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="#">Buy shares</a></li>
-                        <li><a class="dropdown-item" href="#">Sell shares</a></li>
-                        <li><a class="dropdown-item" href="#">Set automated buy point</a></li>
-                        <li><a class="dropdown-item" href="#">Set automated sell point</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Transactions
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="#">Review transactions</a></li>
-                        <li><a class="dropdown-item" href="#">Cancel transaction</a></li>
-                        <li><a class="dropdown-item" href="#">Commit transaction</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="#">View Account</a>
-                </li>
-            </ul>
-            <form class="d-flex">
-                <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
-                <button class="btn btn-outline-success" type="submit">Search</button>
-            </form>
+<form action = "http://localhost:5000/success" method = "POST">
+    <div class="form-group">
+        <label for="userCommands" class="col-form-label">What command would you like to perform</label>
+        <select class="form-control" id="userCommands">
+            <option>ADD</option>
+            <option>QUOTE</option>
+            <option>BUY</option>
+            <option>COMMIT_BUY</option>
+            <option>CANCEL_BUY</option>
+            <option>SELL</option>
+            <option>COMMIT_SELL</option>
+            <option>CANCEL_SELL</option>
+            <option>SET_BUY_AMOUNT</option>
+            <option>CANCEL_SET_BUY</option>
+            <option>SET_BUY_TRIGGER</option>
+            <option>SET_SELL_AMOUNT</option>
+            <option>SET_SELL_TRIGGER</option>
+            <option>CANCEL_SET_SELL</option>
+            <option>DISPLAY_SUMMARY</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="userID" class="col-form-label">Enter User ID</label>
+        <input class="form-control" id="userID" placeholder="User ID">
+    </div>
+    <div class="form-group">
+    <label for="stockSymbol" class="col-form-label">Enter Stock Symbol (three letter form only)</label>
+    <input class="form-control" id="stockSymbol" placeholder="XYZ">
+    </div>
+    <div class="form-group">
+    <label for="amount" class="col-form-label">Enter the amount, please include cents</label>
+    <input class="form-control" id="amount" placeholder="100.00">
+    </div>
+    <div class="form-group row" >
+        <div class="col-form-label">
+            <button type="submit" class="btn btn-primary">Submit command request</button>
         </div>
     </div>
-</nav>
-<p> Web page not completely functional yet, work in progress!</p>
-
-<form action = "http://localhost:5000/success" method = "POST">
 </form>
 
 </body>
