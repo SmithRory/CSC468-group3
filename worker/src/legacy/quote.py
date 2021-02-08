@@ -2,11 +2,11 @@ import sys
 import os
 import socket
 import time
-import parser
+from . import parser
 
-QUOTE_ADDRESS = "quoteserver.seng.uvic.ca"
+QUOTE_ADDRESS = "192.168.4.2"
 PORT = int(os.environ['QUOTE_SERVER_PORT'])
-
+print(f"############################################{PORT}")
 
 def get_quote(uid : str, stock : str) -> float:
     try:
