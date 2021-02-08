@@ -6,12 +6,13 @@ from . import parser
 
 QUOTE_ADDRESS = "192.168.4.2"
 PORT = int(os.environ['QUOTE_SERVER_PORT'])
-print(f"############################################{PORT}")
 
 def get_quote(uid : str, stock : str) -> float:
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(4)
         s.connect((QUOTE_ADDRESS, PORT))
+        s.settimeout(None)
     except:
         # This should throw an error but is left this way so it can be
         # tested outside the VM

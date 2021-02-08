@@ -25,6 +25,9 @@ class CMDHandler:
         self.uncommitted_buy_timers = {} # the timer for each pending buy
         self.uncommitted_sells = {}
         self.uncommitted_sell_timers = {}
+
+        self.quote_update_timers = {}
+        self.users_polling_stocks = {}
     
     # params: user_id, amount
     def add(self, params):
@@ -69,6 +72,11 @@ class CMDHandler:
 
         # Forward the quote to the frontend so the user can see it
         print(f"{stock_symbol} has value {value}")
+
+    def quote_update_handler(self, user_id, stock_symbol):
+        value = quote.get_quote(user_id, stock_symbol)
+
+
 
     # params: user_id, stock_symbol, amount
     def buy(self, params):

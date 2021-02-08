@@ -36,8 +36,8 @@ if __name__ == "__main__":
     while not EXIT_PROGRAM:
         if not message_queue.empty():
             result = command_parse(message_queue.get())
-            print(f"result: {result}")
             command_handler.handle_command(result[0], result[1])
-            sys.stdout.flush()
+
+        sys.stdout.flush()
 
     t_consumer.join()
