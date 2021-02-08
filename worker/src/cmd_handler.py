@@ -421,6 +421,8 @@ class CMDHandler:
         # Notify user.
         print(f"Successfully set an auto buy for {users_auto_buy.amount} stocks of {stock_symbol} at ${buy_trigger} per stock.")
 
+        # TODO
+
     # params: user_id, stock_symbol
     def cancel_set_buy(self, params):
         print("CANCEL_SET_BUY: ", params)
@@ -520,6 +522,8 @@ class CMDHandler:
         # Notify the user
         print(f"Successfully set an auto sell for {pending_auto_sell['sell_amount']} stocks of {stock_symbol} when the price is at least ${sell_trigger} per stock.")
         
+        # TODO
+
     # params: user_id, stock_symbol
     def cancel_set_sell(self, params):
         print("CANCEL_SET_SELL: ", params)

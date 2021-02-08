@@ -28,4 +28,12 @@ def get_users():
     for user in Accounts.objects:
         print(user.to_json())
 
+# Called whenever a user has an auto buy that gets triggered.
+def auto_buy_handler(user_id):
+    #TODO
+    pass
 
+# Called whenever a user has an auto sell that gets triggered.
+def auto_sell_hander(user_id):
+    #TODO
+    pass
