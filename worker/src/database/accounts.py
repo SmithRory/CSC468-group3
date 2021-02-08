@@ -7,6 +7,7 @@ me.connect(host = MONGO_URI)
 class Stocks(me.EmbeddedDocument):
     symbol = me.StringField(required=True, max_length=3)
     amount = me.IntField(required=True)
+    available = me.IntField(required=True) # Ones that are set to auto sell would not be here.
 
 class AutoTransaction(me.EmbeddedDocument):
     user_id = me.StringField(required=True) # Should help to have this field here when querying.
