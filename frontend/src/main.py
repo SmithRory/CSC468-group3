@@ -18,8 +18,11 @@ def home():
 def hell():
     return render_template("home.html")
 
-'''@app.route('/success',methods = ['POST', 'GET'])
+@flask_app.route("/success",methods = ['POST', 'GET'])
 def print_data():
    if request.method == 'POST':
       result = request.form
-      return render_template("result_data.html",result = result)'''
+      # submit to rabbit mq channel
+      # get acknowledgement from rabbit mq?
+      # return acknowledgement?
+      return "Request successfully received"
