@@ -25,9 +25,11 @@ class CMDHandler:
         self.uncommitted_buy_timers = {} # the timer for each pending buy
         self.uncommitted_sells = {}
         self.uncommitted_sell_timers = {}
+        self.pending_sell_triggers = {} # Holds pending auto sells until a sell trigger is given.
 
-        self.quote_update_timers = {}
-        self.users_polling_stocks = {}
+        self.POLLING_RATE = 1
+        self.quote_polling_timers = {}
+        self.user_polling_stocks = {} # { 'stock_symbol' : { 'auto_buy': ['user1', 'user2'], 'auto_sell': ['user1', 'user2'] } }
     
     # params: user_id, amount
     def add(self, params):
@@ -73,8 +75,14 @@ class CMDHandler:
         # Forward the quote to the frontend so the user can see it
         print(f"{stock_symbol} has value {value}")
 
-    def quote_update_handler(self, user_id, stock_symbol):
-        value = quote.get_quote(user_id, stock_symbol)
+    def quote_update_handler(self, stock_symbol):
+        value = quote.get_quote('polling', stock_symbol)
+
+        for user_id in self.user_polling_stocks[stock_symbol]['auto_buy']:
+            pass
+
+        for user_id in self.user_polling_stocks[stock_symbol]['auto_sell']:
+            pass
 
 
 
@@ -98,11 +106,17 @@ class CMDHandler:
         
         # Check if the user has enough available
         trans_price = value*num_stocks
-        funds_available = Accounts.objects.get(user_id=user_id).available
-        if trans_price > funds_available:
+        users_account = Accounts.objects.get(user_id=user_id)
+        if trans_price > users_account.available:
             # Notify the user they don't have enough available funds.
             print("Insufficent funds to purchase stock.")
             return
+        else:
+            # Decrement the amount of available funds until a COMMIT or CANCEL happens.
+            # This is essentially reserving the funds.
+            users_account.available = users_account.available - decimal.Decimal(trans_price)
+
+        users_account.save()
 
         # Forward the user the quote, prompt user to commit or cancel the buy command.
         print(f'Purchace price ({stock_symbol}): ${value} per stock x {num_stocks} stocks = ${trans_price}\nPlease issue COMMIT_BUY or CANCEL_BUY to complete the transaction.')
@@ -119,7 +133,7 @@ class CMDHandler:
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
         commit_timer = Timer(60.0, self.buy_timeout_handler, [user_id]) # 60 seconds
         commit_timer.start()
-        self.uncommitted_buy_timers.update({user_id: commit_timer})        
+        self.uncommitted_buy_timers.update({user_id: commit_timer})
 
     # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
     def buy_timeout_handler(self, user_id):
@@ -134,6 +148,11 @@ class CMDHandler:
 
         # Notify the user their BUY has expired.
         print("The BUY command has expired and will be re-issued.")
+
+        # Free the reserved funds.
+        users_account = Accounts.objects.get(user_id=user_id)
+        users_account.available = users_account.available + decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
+        users_account.save()
 
         # Re-issue the buy command.
         self.buy([user_id, users_buy['stock'], users_buy['amount']])
@@ -157,11 +176,10 @@ class CMDHandler:
             commit_timer.cancel()
 
         # Complete the transaction.
-        # Deduct the cost of the purchase.
+        # Deduct the cost of the purchase. Note: the amount has already been deducted from the available funds.
         user_account = Accounts.objects.get(user_id=user_id)
         cost = decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
         user_account.account = user_account.account - cost
-        user_account.available = user_account.available - cost
         
         # Check if they already have some of this stock
         users_stocks = None
@@ -169,11 +187,12 @@ class CMDHandler:
             users_stock = user_account.stocks.get(symbol=users_buy['stock'])
         except DoesNotExist:
             # Create a new stock
-            new_stock = Stocks(symbol=users_buy['stock'], amount=users_buy['num_stocks'])      
+            new_stock = Stocks(symbol=users_buy['stock'], amount=users_buy['num_stocks'], available=users_buy['num_stocks'])      
             user_account.stocks.append(new_stock)
         else:
             # Increment the amount of stock
             users_stock.amount = users_stock.amount + users_buy['num_stocks']
+            users_stock.available = users_stock.available + users_buy['num_stocks']
 
         # Save the document.
         user_account.save()
@@ -187,6 +206,11 @@ class CMDHandler:
         
         user_id = params[0]
 
+        # Cancel the commit timer
+        commit_timer = self.uncommitted_buy_timers.pop(user_id, None)
+        if commit_timer is not None:
+            commit_timer.cancel()
+            
         #Check to see if the user has issued a buy command.
         users_buy = self.uncommitted_buys.pop(user_id, None)
         if users_buy is None:
@@ -194,10 +218,10 @@ class CMDHandler:
             print("Invalid command. A BUY command has not been issued.")
             return
 
-        # Cancel the commit timer
-        commit_timer = self.uncommitted_buy_timers.pop(user_id, None)
-        if commit_timer is not None:
-            commit_timer.cancel()
+        # Free the reserved funds.
+        users_account = Accounts.objects.get(user_id=user_id)
+        users_account.available = users_account.available + decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
+        users_account.save()
 
         # Notify the user.
         print("Successfully cancelled stock purchase.")
@@ -210,14 +234,14 @@ class CMDHandler:
         stock_symbol = params[1]
         sell_amount = params[2] # dollar amount of the stock to sell
 
-        # Get a quote for the stock the user wants to buy
+        # Get a quote for the stock the user wants to sell
         value = quote.get_quote(user_id, stock_symbol)
 
         # Find the number of stocks the user owns.
-        user_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(user_id=user_id)
         users_stock = None
         try:
-            users_stock = user_account.stocks.get(symbol=stock_symbol)
+            users_stock = users_account.stocks.get(symbol=stock_symbol)
         except DoesNotExist:
             # The user does not own any of the stock they want to sell.
             print(f"Invalid SELL command. The stock {stock_symbol} is not owned.")
@@ -225,9 +249,9 @@ class CMDHandler:
 
         # Check if the user has enough of the given stock.
         num_to_sell = floor(sell_amount/value)
-        if num_to_sell > users_stock.amount:
+        if num_to_sell > users_stock.available:
             # The user does not own enough of this stock
-            print(f"Insufficent number of stocks owned. Stocks needed ({num_to_sell}), stocks owned ({users_stock.amount}).")
+            print(f"Insufficent number of stocks owned. Stocks needed ({num_to_sell}), stocks available ({users_stock.available}).")
             return
 
         # Forward the user the transaction info, prompt user to commit or cancel the buy command.
@@ -236,6 +260,10 @@ class CMDHandler:
         # Add the uncommitted sell to the list.
         uncommitted_sell = {user_id: {'stock': stock_symbol, 'num_stocks': num_to_sell, 'quote': value, 'amount': sell_amount}}
         self.uncommitted_sells.update(uncommitted_sell)
+
+        # Set aside the needed number of stocks.
+        users_stock.available = users_stock.available - decimal.Decimal(num_to_sell)
+        users_account.save()
 
         # Cancel any previous timers for this user. There can only be one pending sell at a time.
         previous_timer = self.uncommitted_sell_timers.pop(user_id, None)
@@ -257,6 +285,12 @@ class CMDHandler:
 
         # Remove the pending sell.
         users_sell = self.uncommitted_sells.pop(user_id, None)
+
+        # Free the reserved stocks.
+        users_account = Accounts.objects.get(user_id=user_id)
+        users_stock = users_account.stocks.get(symbol=users_sell['stock_symbol'])
+        users_stock.available = users_stock.available + decimal.Decimal(num_to_sell)
+        users_account.save()
 
         # Notify the user their SELL has expired.
         print("The SELL command has expired and will be re-issued.")
@@ -286,7 +320,7 @@ class CMDHandler:
         users_account = Accounts.objects.get(user_id=user_id)
         profit = decimal.Decimal(users_sell['num_stocks'] * users_sell['quote'])
 
-        users_stocks = None
+        users_stock = None
         try:
             users_stock = users_account.stocks.get(symbol=users_sell['stock'])
         except DoesNotExist:
@@ -316,19 +350,24 @@ class CMDHandler:
         print("CANCEL_SELL: ", params)
 
         user_id = params[0]
+        
+        # Cancel the timer.
+        timer = self.uncommitted_sell_timers.pop(user_id, None)
+        if timer is not None:
+            timer.cancel()
 
         # Check to see if the user has issued a SELL command.
         users_sell = self.uncommitted_sells.pop(user_id, None)
         if users_sell is None:
             # Must issue a SELL command.
             print("Invalid command. A SELL command has not been issued.")
-
-        # Cancel the timer.
-        timer = self.uncommitted_sell_timers.pop(user_id, None)
-        if timer is not None:
-            timer.cancel()
-        else:
             return
+
+        # Free the reserved stocks.
+        users_account = Accounts.objects.get(user_id=user_id)
+        users_stock = users_account.stocks.get(symbol=users_sell['stock'])
+        users_stock.available = users_stock.available + decimal.Decimal(users_sell['num_stocks'])
+        users_account.save()
 
         # Notify the user.
         print("Successfully cancelled sell transaction.")
@@ -428,15 +467,121 @@ class CMDHandler:
     def set_sell_amount(self, params):
         print("SET_SELL_AMOUNT: ", params)
 
+        user_id = params[0]
+        stock_symbol = params[1]
+        sell_amount = floor(params[2]) # Can only sell a whole number of shares.
+
+        users_account = Accounts.objects.get(user_id=user_id)
+
+        # Verify the user owns enough shares of the given stock.
+        users_stock = None
+        try:
+            users_stock = users_account.stocks.get(symbol=stock_symbol)
+        except DoesNotExist:
+            # The user does not own any of the stock they want to sell.
+            print(f"Invalid command. The stock {stock_symbol} is not owned.")
+            return
+
+        if users_stock.available < sell_amount:
+            print(f"Invalid command. Number of available stocks for {stock_symbol} is ({users_stock.available}) and is less than the amount set to sell {sell_amount}.")
+            return
+
+        # Decrement the number of available shares.
+        users_stock.available = users_stock.available - decimal.Decimal(sell_amount)
+        users_account.save()
+
+        # Add the auto sell to the dictionary until the SET_SELL_TRIGGER is received.
+        pending_auto_sell = {(user_id,stock_symbol): {'sell_amount': sell_amount}}
+        self.pending_sell_triggers.update(pending_auto_sell)
+
+        # Notify the user.
+        print(f"Successfully set to sell {sell_amount} stocks of {stock_symbol} automatically. Please issue SET_SELL_TRIGGER to set the trigger price.")
+
     # params: user_id, stock_symbol, amount
     def set_sell_trigger(self, params):
         print("SET_SELL_TRIGGER: ", params)
 
+        user_id = params[0]
+        stock_symbol = params[1]
+        sell_trigger = params[2]
+
+        # Check the user has issused a SET_SELL_AMOUNT
+        pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)
+        if pending_auto_sell is None:
+            print("Invalid command. Issue a SET_SELL_AMOUNT for this stock before setting the trigger price.")
+            return
+
+        # Create the auto_sell
+        users_account = Accounts.objects.get(user_id=user_id)
+        users_auto_sell = None
+        try:
+            # Check to see if one exists for this stock
+            users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
+        except DoesNotExist:
+            # Create a new auto sell.
+            new_auto_sell = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=pending_auto_sell['sell_amount'], trigger=sell_trigger)
+            users_account.auto_sell.append(new_auto_sell)
+        else:
+            # Auto sell has already been setup for this stock.
+            # Update the auto sell and adjust the amount of reserved stocks
+            prev_stock_amount = users_auto_sell.amount
+
+            users_auto_sell.amount = pending_auto_sell['sell_amount']
+            users_auto_sell.trigger = sell_trigger
+
+            users_stocks = users_account.stocks.get(symbol=stock_symbol)
+            users_stocks.available = users_stocks.available + prev_stock_amount - users_auto_sell.amount
+
+        users_account.save()
+
+        # Notify the user
+        print(f"Successfully set an auto sell for {pending_auto_sell['sell_amount']} stocks of {stock_symbol} when the price is at least ${sell_trigger} per stock.")
+        
     # params: user_id, stock_symbol
     def cancel_set_sell(self, params):
         print("CANCEL_SET_SELL: ", params)
 
-    # params: filename, user_id(optional)
+        user_id = params[0]
+        stock_symbol = params[1]
+
+        bad_cmd = True
+        reserved_amount = 0
+        users_account = Accounts.objects.get(user_id=user_id)
+
+        # Check if just a SET_SELL_AMOUNT has been issued.
+        pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)
+        if pending_auto_sell is not None:
+            reserved_amount = pending_auto_sell['sell_amount']
+            bad_cmd = False
+
+        if bad_cmd == True:
+            # Check if a SET_SELL_AMOUNT and SET_SELL_TRIGGER has been issued.
+            users_auto_sell = None
+            try:
+                users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
+                bad_cmd = False
+            except:
+                # No auto sell.
+                pass
+
+            # Remove the auto sell.
+            users_account.auto_sell.remove(users_auto_sell)
+            reserved_amount = users_auto_sell.amount
+        
+        if bad_cmd == True:
+            # No SET_SELL commands have been issued.
+            print(f"Invalid command. No auto sell has been setup for stock {stock_symbol}.")
+            return
+
+        # Release the reserved stocks.
+        users_stocks = users_account.stocks.get(symbol=stock_symbol)
+        users_stocks.available = users_stocks.available + reserved_amount
+        users_account.save()
+
+        # Notify user.
+        print(f"Successfully cancelled automatic selling of stock {stock_symbol}.")
+
+    # params: user_id(optional), filename
     def dumplog(self, params):
         # use user_id here to get data from databaseCA
         filename = params[0]
