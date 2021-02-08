@@ -116,7 +116,7 @@ class CMDHandler:
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
         commit_timer = Timer(60.0, self.buy_timeout_handler, [user_id]) # 60 seconds
         commit_timer.start()
-        self.uncommitted_buy_timers.update({user_id: commit_timer})        
+        self.uncommitted_buy_timers.update({user_id: commit_timer})
 
     # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
     def buy_timeout_handler(self, user_id):
@@ -474,7 +474,7 @@ class CMDHandler:
         users_account.save()
 
         # Add the auto sell to the dictionary until the SET_SELL_TRIGGER is received.
-        pending_auto_sell = {('user_id', stock_symbol): {'sell_amount': sell_amount}}
+        pending_auto_sell = {(user_id,stock_symbol): {'sell_amount': sell_amount}}
         self.pending_sell_triggers.update(pending_auto_sell)
 
         # Notify the user.
@@ -489,11 +489,6 @@ class CMDHandler:
         sell_trigger = params[2]
 
         # Check the user has issused a SET_SELL_AMOUNT
-        
-        print('TRIGGERS:')
-        for trigger in self.pending_sell_triggers:
-            print(trigger)
-
         pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)
         if pending_auto_sell is None:
             print("Invalid command. Issue a SET_SELL_AMOUNT for this stock before setting the trigger price.")
@@ -553,8 +548,7 @@ class CMDHandler:
                 pass
 
             # Remove the auto sell.
-            print('users auto sell', users_auto_sell.to_json())
-            users_account.auto_sell.remove(users_auto_sell) 
+            users_account.auto_sell.remove(users_auto_sell)
             reserved_amount = users_auto_sell.amount
         
         if bad_cmd == True:
