@@ -5,6 +5,7 @@ RUN mkdir /app
 WORKDIR /app
 
 COPY requirements.txt /app
+COPY logfile.xsd /app
 COPY src/ /app
 
 #Add if running in VM --proxy="http://192.168.4.1:3128"
