@@ -27,5 +27,3 @@ def get_users():
     print('Users:')
     for user in Accounts.objects:
         print(user.to_json())
-
-
