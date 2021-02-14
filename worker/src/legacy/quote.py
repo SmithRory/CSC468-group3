@@ -10,6 +10,7 @@ PORT = int(os.environ['QUOTE_SERVER_PORT'])
 
 def get_quote(uid : str, stock_name : str) -> float:
     result = quote_cache.cache.get(stock_name, None)
+    
     if result is None or time.time() - result.timestamp >= quote_cache.UPDATE_FREQ:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -28,15 +29,14 @@ def get_quote(uid : str, stock_name : str) -> float:
         data = s.recv(1024)
         response = parser.quote_result_parse(data.decode('utf-8'))
 
-        quote_cache.cache.update(
-            {
-                stock_name: quote_cache.Quote(
+        quote_cache.cache.update({
+            stock_name: quote_cache.Quote
+            (
                 stock_name=stock_name,
                 value=result[0],
                 timestamp=time.time()
             )
-            }
-        )
+        })
 
         return response[0] # Only returns the stock price
 
