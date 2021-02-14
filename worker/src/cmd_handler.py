@@ -10,7 +10,7 @@ import decimal
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
 # Helpful Doc https://docs.mongoengine.org/guide/querying.html#atomic-updates
 
-# TODO: split this up more nicely
+# TODO: extract repeated logic into their own function
 
 # TODO: logging
 
@@ -21,16 +21,21 @@ import decimal
 class CMDHandler:
 
     def __init__(self):
+        # Auto-buy.
         self.uncommitted_buys = {} # which users have a pending buy, and the transaction info
         self.uncommitted_buy_timers = {} # the timer for each pending buy
+        
+        # Auto-sell.
         self.uncommitted_sells = {}
         self.uncommitted_sell_timers = {}
         self.pending_sell_triggers = {} # Holds pending auto sells until a sell trigger is given.
 
+        # Quote polling for auto buy/sell.
         self.POLLING_RATE = 1
         self.quote_polling_timers = {}
         self.user_polling_stocks = {} # { 'stock_symbol' : { 'auto_buy': ['user1', 'user2'], 'auto_sell': ['user1', 'user2'] } }
-    
+        
+
     # params: user_id, amount
     def add(self, params):
         amount = params[1]
