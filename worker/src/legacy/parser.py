@@ -18,6 +18,19 @@ def command_parse(command: str):
     # return [tokens[0], (tokens[1], float(tokens[2]))]
     return [tokens[0], tuple(tokens[1:])]
 
+''' Parses the resulting string after requesting a quote
+from the legacy quote server.
+Server Quote Return Format: “Quote, Stock Symbol, USER NAME, CryptoKey” 
+'''
+def quote_result_parse(result: str):
+    tokens = result.split(',')
+    if not is_float(tokens[0]):
+        print("Error: quote result not int")
+        tokens[0] = None
+
+    tokens[0] = float(tokens[0])
+    return tokens
+
 def is_float(input: str):
     try:
         float(input)

@@ -57,13 +57,15 @@ def send_workload() -> None:
 
     else:
         f = open(args.filename, 'r')
-        count = 0
         for l in f:
-            count = count+1
+            if ']' in l:
+                tokens = l.split(']')
+                l = tokens[1]
+
             channel.basic_publish(
                 exchange=args.exchange,
                 routing_key=args.queue,
-                body=str(count)+l,
+                body=l,
                 properties=pika.BasicProperties()
             )
 

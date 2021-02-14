@@ -45,8 +45,14 @@ services:
     depends_on:
       - mongodb
       - rabbitmq
-    # networks:
-    #   - mongodb
+    ports:
+      - 4444:4444
+    extra_hosts:
+      - "quoteserver.seng.uvic.ca:192.168.4.2"
+        #networks:
+        #quote_server:
+        #ipv4_address: 192.168.4.2
+    #   #- mongodb
     
   rabbitmq:
     image: rabbitmq:3-management
@@ -83,6 +89,13 @@ services:
 # networks:
 #   mongodb:
 #     driver: bridge # Allows the worker to communicate w/ mongo w/o exposing ports.
+
+       #networks:
+        #  quote_server:
+          #    ipam:
+            #      driver: default
+      #      config:
+              #       - subnet: 192.168.4.255/24
 
 volumes:
   mongo-data:
