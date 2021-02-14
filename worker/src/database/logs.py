@@ -1,5 +1,5 @@
 # Interfaces with the 'logs' collection.
-
+import os
 from mongoengine import *
 
 MONGO_URI = 'mongodb://' + os.environ['MONGODB_USERNAME'] + ':' + os.environ['MONGODB_PASSWORD'] + '@' + os.environ['MONGODB_HOSTNAME'] + ':27017/' + os.environ['MONGODB_DATABASE']
@@ -74,3 +74,6 @@ class LogType(Document):
     systemEvent = EmbeddedDocumentListField(SystemEventType)
     errorEvent = EmbeddedDocumentListField(ErrorEventType)
     debugEvent = EmbeddedDocumentListField(DebugType)
+
+def get_logs():
+    return LogType.objects.to_json()
