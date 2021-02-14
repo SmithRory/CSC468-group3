@@ -67,12 +67,9 @@ class Consumer():
     def on_basic_qos_ok(self, _unused_frame):
         self._channel.basic_consume(
             queue=self._queue_name,
-            on_message_callback=self.queue_callback
+            on_message_callback=self.queue_callback,
+            auto_ack=True
         )
 
     def queue_callback(self, ch, method, properties, body):
-        ch.basic_ack(delivery_tag=method.delivery_tag)
         self._commands.put(body.decode())
-
-        print(f"Message: {body.decode()}")
-        sys.stdout.flush()
