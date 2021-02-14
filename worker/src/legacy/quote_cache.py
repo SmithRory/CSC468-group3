@@ -12,4 +12,5 @@ class Quote:
     value: float
     timestamp: float
 
-cache = []
+cache = {} # {stock_name: Quote}
+UPDATE_FREQ = 4 # Values are outdated after 4 seconds

@@ -27,8 +27,9 @@ def quote_result_parse(result: str):
     if not is_float(tokens[0]):
         print("Error: quote result not int")
         tokens[0] = None
-
-    tokens[0] = float(tokens[0])
+    else:
+        tokens[0] = float(tokens[0])
+        
     return tokens
 
 def is_float(input: str):
