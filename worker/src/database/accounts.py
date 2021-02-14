@@ -23,6 +23,7 @@ class Accounts(me.Document):
     auto_buy = me.EmbeddedDocumentListField(AutoTransaction, default=[])
     auto_sell = me.EmbeddedDocumentListField(AutoTransaction, default=[])
 
+# Test function.
 def get_users():
     print('Users:')
     for user in Accounts.objects:
