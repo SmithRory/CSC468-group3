@@ -2,7 +2,7 @@ from database.accounts import Accounts, Stocks, AutoTransaction, get_users
 from mongoengine import DoesNotExist
 from threading import Timer
 from math import floor
-from legacy import quote, quote_cache
+from legacy import quote, quote_cache, quote_polling
 from LogFile import log_handler
 
 import decimal
@@ -32,9 +32,10 @@ class CMDHandler:
 
         # Quote polling for auto buy/sell.
         self.POLLING_RATE = 1
-        self.quote_polling_timers = {}
-        self.user_polling_stocks = {} # { 'stock_symbol' : { 'auto_buy': ['user1', 'user2'], 'auto_sell': ['user1', 'user2'] } }
-        
+        self.quote_polling = quote_polling.UserPollingStocks()
+        self.polling_thread = quote_polling.QuotePollingThread(quote_polling = self.quote_polling, polling_rate = self.POLLING_RATE)
+        self.polling_thread.setDaemon(True) # will be cleaned up on exit
+        self.polling_thread.start()
 
     # params: user_id, amount
     def add(self, params):
@@ -79,21 +80,6 @@ class CMDHandler:
 
         # Forward the quote to the frontend so the user can see it
         print(f"{stock_symbol} has value {value}")
-
-    def quote_update_handler(self, stock_symbol):
-        value = quote.get_quote('polling', stock_symbol)
-
-        # Perform auto buy
-        for user_id in self.user_polling_stocks[stock_symbol]['auto_buy']:
-            self.auto_buy_handler(user_id, stock_symbol, value)
-            # Remove user from list of auto_buys
-            self.user_polling_stocks[stock_symbol]['auto_buy'].remove(user_id)
-
-        # Perform auto sell
-        for user_id in self.user_polling_stocks[stock_symbol]['auto_sell']:
-            self.auto_sell_handler(user_id, stock_symbol, value)
-            # Remove user from list of auto_sells
-            self.user_polling_stocks[stock_symbol]['auto_sell'].remove(user_id)
 
     # params: user_id, stock_symbol, amount
     def buy(self, params):
@@ -448,9 +434,10 @@ class CMDHandler:
         print(f"Successfully set an auto buy for {users_auto_buy.amount} stocks of {stock_symbol} at ${buy_trigger} per stock.")
 
         # Add the user to the list of auto_buys for the stock
-        auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
-        if user_id not in auto_transactions['auto_buy']:
-            auto_transactions['auto_buy'].append(user_id)
+        self.polling_stocks.add_user_autobuy(user_id, stock_symbol)
+        #auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
+        #if user_id not in auto_transactions['auto_buy']:
+        #   auto_transactions['auto_buy'].append(user_id)
 
     # params: user_id, stock_symbol
     def cancel_set_buy(self, params):
@@ -474,54 +461,18 @@ class CMDHandler:
         users_account.available = users_account.available + decimal.Decimal(users_auto_buy.amount * users_auto_buy.trigger)
         users_account.save()
 
-        # Remove the user from the auto_buy list
-        auto_transactions = self.user_polling_stocks.get(stock_symbol, None)
-        if auto_transactions is not None:
-            try:
-                auto_transactions['auto_buy'].remove(user_id)
-            except ValueError:
-                # User wasn't in list. Shouldn't happen but non-fatal if it does.
-                pass
+        # Remove the user from the stock polling
+        self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
+        #auto_transactions = self.user_polling_stocks.get(stock_symbol, None)
+        #if auto_transactions is not None:
+        #    try:
+        #        auto_transactions['auto_buy'].remove(user_id)
+        #    except ValueError:
+        #        # User wasn't in list. Shouldn't happen but non-fatal if it does.
+        #        pass
 
         # Notify user.
         print(f"Successfully cancelled the auto buy for stock {stock_symbol}.")
-
-    # Called whenever a user has an auto buy that gets triggered.
-    def auto_buy_handler(self, user_id, stock_symbol, value):
-        print(f"Autobuy triggered for {user_id} since stock {stock_symbol} reached {value}.")
-
-        # Get the user document
-        user_account = Accounts.objects.get(user_id=user_id)
-
-        # Remove the auto buy transaction from the users list of auto buys
-        users_auto_buy = user_account.auto_buy.get(stock_symbol=stock_symbol)
-        user_account.auto_buy.remove(users_auto_buy)
-
-        # Add the difference between the reserved amount and transaction cost to the amount available.
-        # Deduct the transaction cost from the account.
-        reserved_amount = users_auto_buy.amount * users_auto_buy.trigger
-        transaction_cost = users_auto_buy.amount * value
-        user_account.available = user_account.available + decimal.Decimal(reserved_amount - transaction_cost)
-        user_account.amount = user_account.amount - decimal.Decimal(transaction_cost)
-        
-        # Update the number of stocks owned.
-        users_stocks = None
-        try:
-            users_stock = user_account.stocks.get(symbol=stock_symbol)
-        except DoesNotExist:
-            # Create a new stock
-            new_stock = Stocks(symbol=stock_symbol, amount=users_auto_buy.amount, available=users_auto_buy.amount)      
-            user_account.stocks.append(new_stock)
-        else:
-            # Increment the amount of stock
-            users_stock.amount = users_stock.amount + users_auto_buy.amount
-            users_stock.available = users_stock.available + users_auto_buy.amount
-
-        # Save the user.
-        user_account.save()
-
-        # Notify the user.
-        print(f"Successfully completed auto buy of {users_auto_buy.amount} shares of stock {stock_symbol}.")
 
     # params: user_id, stock_symbol, amount
     def set_sell_amount(self, params):
@@ -598,9 +549,10 @@ class CMDHandler:
         print(f"Successfully set an auto sell for {pending_auto_sell['sell_amount']} stocks of {stock_symbol} when the price is at least ${sell_trigger} per stock.")
         
         # Add user to the list of auto_sells for the stock
-        auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
-        if user_id not in auto_transactions['auto_sell']:
-            auto_transactions['auto_sell'].append(user_id)
+        self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
+        #auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
+        #if user_id not in auto_transactions['auto_sell']:
+        #    auto_transactions['auto_sell'].append(user_id)
 
     # params: user_id, stock_symbol
     def cancel_set_sell(self, params):
@@ -644,42 +596,17 @@ class CMDHandler:
         users_account.save()
 
         # Remove the user from the auto_sell list
-        auto_transactions = self.user_polling_stocks.get(stock_symbol, None)
-        if auto_transactions is not None:
-            try:
-                auto_transactions['auto_sell'].remove(user_id)
-            except ValueError:
-                # User wasn't in list. Shouldn't happen but non-fatal if it does.
-                pass
+        self.quote_polling.remove_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
+        #auto_transactions = self.user_polling_stocks.get(stock_symbol, None)
+        #if auto_transactions is not None:
+        #    try:
+        #        auto_transactions['auto_sell'].remove(user_id)
+        #    except ValueError:
+        #        # User wasn't in list. Shouldn't happen but non-fatal if it does.
+        #        pass
 
         # Notify user.
         print(f"Successfully cancelled automatic selling of stock {stock_symbol}.")
-
-    # Called whenever a user has an auto sell that gets triggered.
-    def auto_sell_hander(self, user_id, stock_symbol, value):
-        print(f"Autosell triggered for {user_id} since stock {stock_symbol} reached {value}.")
-
-        # Get the user document
-        users_account = Accounts.objects.get(user_id=user_id)
-
-        # Remove the auto sell.
-        users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
-        users_account.auto_sell.remove(users_auto_sell)
-
-        # Update the number of stocks.
-        users_stock = users_account.stocks.get(symbol=stock_symbol)
-        users_stock.amount = users_stock.amount - users_auto_sell.amount 
-        if users_stock.amount == 0:
-            users_account.stocks.remove(users_stock) 
-
-        # Adjust the funds in the account.
-        users_account.account = users_account.account + decimal.Decimal(value * users_auto_sell.amount)
-
-        # Save the user.
-        users_account.save()
-
-        # Notify the user.
-        print(f"Successfully completed auto sell of {users_auto_sell.amount} shares of stock {stock_symbol}.")
 
     # params: filename, user_id(optional)
     def dumplog(self, params):
