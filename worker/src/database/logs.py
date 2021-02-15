@@ -54,16 +54,16 @@ class AccountTransactionType(mongoengine.EmbeddedDocument):
     transactionNum = mongoengine.IntField(required=True, min_value=0)
     action = mongoengine.StringField(required=True)
     username = mongoengine.StringField(required=True)
-    funds = mongoengine.DecimalField(precision=2)
+    funds = mongoengine.DecimalField(required=True, precision=2)
 
-    def log(self, timestamp, server, transactionNum, action, username, funds=None):
-        # Get all the logs.
-        logs = LogType.objects.first()
-        # Create the new log.
-        transaction_log = AccountTransactionType(timestamp=timestamp, server=server, transactionNum=transactionNum, action=action, username=username, funds=funds)
-        # Append the new quote log.
-        logs.accountTransaction.append(transaction_log)
-        logs.save()
+    def log(self, timestamp, server, transactionNum, action, username, funds):
+                # Get all the logs.
+                logs = LogType.objects.first()
+                # Create the new log.
+                transaction_log = AccountTransactionType(timestamp=timestamp, server=server, transactionNum=transactionNum, action=action, username=username, funds=funds)
+                # Append the new quote log.
+                logs.accountTransaction.append(transaction_log)
+                logs.save()
 
 class QuoteServerType(mongoengine.EmbeddedDocument):
     timestamp = mongoengine.IntField(required=True) #change to datetime if required
@@ -95,13 +95,13 @@ class UserCommandType(mongoengine.EmbeddedDocument):
     funds = mongoengine.DecimalField(precision=2)
 
     def log(self, timestamp, server, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None):
-        # Get all the logs.
-        logs = LogType.objects.first()
-        # Create the new log.
-        command_log = UserCommandType(timestamp=timestamp, server=server, transactionNum=transactionNum, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
-        # Append the new command log.
-        logs.userCommand.append(command_log)
-        logs.save()
+                # Get all the logs.
+                logs = LogType.objects.first()
+                # Create the new log.
+                command_log = UserCommandType(timestamp=timestamp, server=server, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
+                # Append the new command log.
+                logs.userCommand.append(command_log)
+                logs.save()
 
 class LogType(mongoengine.Document):
 
