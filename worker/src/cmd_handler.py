@@ -642,14 +642,14 @@ class CMDHandler:
             users_auto_sell = None
             try:
                 users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
-                bad_cmd = False
             except:
                 # No auto sell.
                 pass
-
-            # Remove the auto sell.
-            users_account.auto_sell.remove(users_auto_sell)
-            reserved_amount = users_auto_sell.amount
+            else:
+                # Remove the auto sell.
+                users_account.auto_sell.remove(users_auto_sell)
+                reserved_amount = users_auto_sell.amount
+                bad_cmd = False
         
         if bad_cmd == True:
             # No SET_SELL commands have been issued.
