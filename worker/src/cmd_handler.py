@@ -8,6 +8,7 @@ from LogFile import log_handler
 import time
 
 import decimal
+import time
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
 # Helpful Doc https://docs.mongoengine.org/guide/querying.html#atomic-updates
@@ -67,6 +68,7 @@ class CMDHandler:
         # Save the user
         try:
             user.save()
+            AccountTransactionType().log((round(time.time()*1000)), "Worker", transactionNum, "add", user_id, amount)
         except Exception as e:
             # Let user know of the error
             print(e)
@@ -219,6 +221,8 @@ class CMDHandler:
 
         # Save the document.
         user_account.save()
+        AccountTransactionType().log((round(time.time()*1000)), "Worker", transactionNum, "remove", user_id, cost)
+
 
         # Notify the user.
         print("Successfully purchased stock.")
@@ -389,6 +393,7 @@ class CMDHandler:
 
         # Save the document.
         users_account.save()
+        AccountTransactionType().log((round(time.time()*1000)), "Worker", transactionNum, "add", user_id, profit)
 
         # Notify the users.
         print(f"Successfully sold ${profit} of stock {users_sell['stock']}.")
