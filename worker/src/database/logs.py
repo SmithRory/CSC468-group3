@@ -43,7 +43,7 @@ class SystemEventType(mongoengine.EmbeddedDocument):
                     # Get all the logs.
                     logs = LogType.objects.first()
                     # Create the new log.
-                    sys_evnt_log = SystemEventType(timestamp=timestamp, server=server, transactionNum=transactionNum, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
+                    sys_evnt_log = SystemEventType(timestamp=timestamp, server=server, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
                     # Append the new command log.
                     logs.systemEvent.append(sys_evnt_log)
                     logs.save()
