@@ -1,4 +1,3 @@
-
 [1] ADD,oY01WVirLr,63511.53 
 [2] QUOTE,oY01WVirLr,S 
 [3] BUY,oY01WVirLr,S,276.83 
