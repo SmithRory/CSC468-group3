@@ -32,11 +32,16 @@ command_handler = CMDHandler()
 if __name__ == "__main__":
     t_consumer = Thread(target=rabbit_queue.run)
     t_consumer.start()
+    transactionNum = 1 # to track the number of the transaction, for logging all logs of the same transaction must have the same number
+    # transactionNum needs to change, should ideally be in the load balancer that handles distributing the commands
+
 
     while not EXIT_PROGRAM:
         if not message_queue.empty():
             result = command_parse(message_queue.get())
-            command_handler.handle_command(result[0], result[1])
+            command_handler.handle_command(transactionNum, result[0], result[1])
+            transactionNum = transactionNum + 1
+
 
         sys.stdout.flush()
 
