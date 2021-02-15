@@ -4,6 +4,8 @@ from database.accounts import Accounts, Stocks
 from legacy import quote
 from mongoengine import DoesNotExist
 
+# This class exists so the system can keep track of which stocks to poll, and which users have auto
+# transactions for each of those stocks. This info will eventually be in a cache.
 class UserPollingStocks:
     def __init__(self):
         self._lock = threading.Lock()
@@ -124,7 +126,7 @@ class QuotePollingThread(threading.Thread):
         print(f"Successfully completed auto buy of {users_auto_buy.amount} shares of stock {stock_symbol}.")
 
     # Called whenever a user has an auto sell that gets triggered.
-    def auto_sell_hander(self, user_id, stock_symbol, value):
+    def auto_sell_handler(self, user_id, stock_symbol, value):
         print(f"Autosell triggered for {user_id} since stock {stock_symbol} reached {value}.")
 
         # Get the user document
