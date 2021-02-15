@@ -1,41 +1,60 @@
 version: "3.7"
 
 services:
-  flask:
-    build: frontend
-    container_name: flask
-    restart: always
-    expose:
-      - 8080
-    environment: 
-      - BACKEND_PORT=${BACKEND_PORT}
-    
-  nginx:
-    build: nginx
-    container_name: nginx
-    restart: always
-    ports:
-      - 80:80
 
-  manager:
-    build: manager
-    container_name: manager
-    restart: always
-    environment: 
-      - BACKEND_PORT=${BACKEND_PORT}
-      - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
-    volumes: 
-      - /var/run/docker.sock:/var/run/docker.sock
+  # flask:
+  #   build: frontend
+  #   container_name: flask
+  #   restart: always
+  #   expose:
+  #     - 8080
+  #   environment: 
+  #     - BACKEND_PORT=${BACKEND_PORT}
+    
+  # nginx:
+  #   build: nginx
+  #   container_name: nginx
+  #   restart: always
+  #   ports:
+  #     - 80:80
+
+  # manager:
+  #   build: manager
+  #   container_name: manager
+  #   restart: always
+  #   depends_on:
+  #     - rabbitmq_commands
+      # - rabbitmq_confirm
+  #   expose:
+  #     - ${BACKEND_PORT}
+  #   environment: 
+  #     - BACKEND_PORT=${BACKEND_PORT}
+  #     - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
+  #   volumes: 
+  #     - /var/run/docker.sock:/var/run/docker.sock
 
   worker:
     build: worker
     container_name: worker
+    restart: always
     environment: 
       - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
+      - MONGODB_DATABASE=pygangdb
+      - MONGODB_USERNAME=pygang_worker
+      - MONGODB_PASSWORD=pygang_worker
+      - MONGODB_HOSTNAME=mongodb
+    depends_on:
+      - mongodb
+      - rabbitmq_commands
+      - rabbitmq_confirm
+    ports:
+      - 4444:4444
+    extra_hosts:
+      - "quoteserver.seng.uvic.ca:192.168.4.2"
     
-  rabbitmq:
+  rabbitmq_commands:
     image: rabbitmq:3-management
-    container_name: rabbitmq
+    container_name: rabbitmq-commands
     # volumes:
     #   - ./.docker/rabbitmq/etc/:/etc/rabbitmq/
     #   - ./.docker/rabbitmq/data/:/var/lib/rabbitmq/
@@ -48,8 +67,31 @@ services:
       - 5672:5672
       - 15672:15672
 
-  mongo:
-    container_name: mongo
+  rabbitmq_confirm:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-confirm
+
+  mongodb:
     image: mongo
-    ports:
-      - 27017:27017
+    container_name: mongodb
+    restart: unless-stopped
+    command: mongod --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: pygang_root
+      MONGO_INITDB_ROOT_PASSWORD: pygang_root
+      MONGO_INITDB_DATABASE: pygangdb
+      MONGODB_DATA_DIR: /data/db
+      MONGODB_LOG_DIR: /dev/null
+    volumes:
+     - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+     - mongo-data:/data/db
+    # networks:
+    #   - mongodb
+
+# networks:
+#   mongodb:
+#     driver: bridge # Allows the worker to communicate w/ mongo w/o exposing ports.
+
+volumes:
+  mongo-data:
+    driver: local
