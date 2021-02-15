@@ -39,7 +39,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
             stock_name: quote_cache.Quote
             (
                 stock_name=stock_name,
-                value=result[0],
+                value=response[0],
                 timestamp=timestampForLog
             )
         })

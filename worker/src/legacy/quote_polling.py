@@ -3,6 +3,7 @@ import time
 from database.accounts import Accounts, Stocks
 from legacy import quote
 from mongoengine import DoesNotExist
+import decimal
 
 # This class exists so the system can keep track of which stocks to poll, and which users have auto
 # transactions for each of those stocks. This info will eventually be in a cache.
@@ -18,8 +19,8 @@ class UserPollingStocks:
         with self._lock:
             try:
                 self.user_polling_stocks[stock_symbol]['auto_buy'].remove(user_id)
-            except ValueError:
-                # User wasn't in list. Shouldn't happen but non-fatal if it does.
+            except KeyError:
+                # User wasn't in list. Nothing to be done.
                 pass
 
     def add_user_autobuy(self, user_id, stock_symbol):
@@ -32,8 +33,8 @@ class UserPollingStocks:
         with self._lock:
             try:
                 self.user_polling_stocks[stock_symbol]['auto_sell'].remove(user_id)
-            except ValueError:
-                # User wasn't in list. Shouldn't happen but non-fatal if it does.
+            except KeyError:
+                # User wasn't in list. Nothing to be done.
                 pass
 
     def add_user_autosell(self, user_id, stock_symbol):

@@ -85,13 +85,13 @@ class QuoteServerType(mongoengine.EmbeddedDocument):
     cryptokey = mongoengine.StringField(required=True)
 
     def log(self, timestamp, server, transactionNum, price, stockSymbol, username, quoteServerTime, cryptokey):
-            # Get all the logs.
-            logs = LogType.objects.first()
-            # Create the new log.
-            quote_log = QuoteServerType(timestamp=timestamp, server=server, transactionNum=transactionNum, price=price, stockSymbol=stockSymbol, username=username, quoteServerTime=quoteServerTime, cryptokey=cryptokey)
-            # Append the new quote log.
-            logs.quoteServer.append(quote_log)
-            logs.save()
+        # Get all the logs.
+        logs = LogType.objects.first()
+        # Create the new log.
+        quote_log = QuoteServerType(timestamp=timestamp, server=server, transactionNum=transactionNum, price=price, stockSymbol=stockSymbol, username=username, quoteServerTime=quoteServerTime, cryptokey=cryptokey)
+        # Append the new quote log.
+        logs.quoteServer.append(quote_log)
+        logs.save()
 
 class UserCommandType(mongoengine.EmbeddedDocument):
     timestamp = mongoengine.IntField(required=True)

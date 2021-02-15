@@ -15,6 +15,7 @@ from database.logs import LogType
 # so that every service can shut down properly. 
 EXIT_PROGRAM = False
 def exit_gracefully(self, signum, frame):
+    global EXIT_PROGRAM
     EXIT_PROGRAM = True
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
@@ -22,7 +23,7 @@ signal.signal(signal.SIGTERM, exit_gracefully)
 message_queue = queue.Queue()
 rabbit_queue = Consumer(
     command_queue=message_queue,
-    connection_param='rabbitmq',
+    connection_param='rabbitmq-commands',
     exchange_name='backend',
     queue_name='backend_queue',
     routing_key='backend_queue'
@@ -30,7 +31,7 @@ rabbit_queue = Consumer(
 
 command_handler = CMDHandler()
 
-if __name__ == "__main__":
+def main():
     t_consumer = Thread(target=rabbit_queue.run)
     t_consumer.start()
     transactionNum = 1 # to track the number of the transaction, for logging all logs of the same transaction must have the same number
@@ -38,6 +39,7 @@ if __name__ == "__main__":
 
     log = LogType().save() #should be in manager, starting off the log document/object
 
+    global EXIT_PROGRAM
     while not EXIT_PROGRAM:
         if not message_queue.empty():
             result = command_parse(message_queue.get())
@@ -48,3 +50,6 @@ if __name__ == "__main__":
         sys.stdout.flush()
 
     t_consumer.join()
+
+if __name__ == "__main__":
+    main()

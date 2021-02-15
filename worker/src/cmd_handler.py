@@ -5,7 +5,7 @@ from threading import Timer
 from math import floor
 from legacy import quote, quote_cache, quote_polling
 from LogFile import log_handler
-
+import time
 import decimal
 import time
 
@@ -13,8 +13,6 @@ import time
 # Helpful Doc https://docs.mongoengine.org/guide/querying.html#atomic-updates
 
 # TODO: extract repeated logic into their own function
-
-# TODO: logging
 
 # TODO: check the user exists before executing commands (this is only being done for the ADD so far)
 
@@ -147,7 +145,7 @@ class CMDHandler:
             previous_timer.cancel()
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.buy_timeout_handler, [user_id]) # 60 seconds
+        commit_timer = Timer(60.0, self.buy_timeout_handler, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_buy_timers.update({user_id: commit_timer})
 
@@ -171,7 +169,7 @@ class CMDHandler:
         users_account.save()
 
         # Re-issue the buy command.
-        self.buy([user_id, users_buy['stock'], users_buy['amount']])
+        self.buy(transactionNum=transactionNum, params=[user_id, users_buy['stock'], users_buy['amount']])
 
     # params: user_id
     def commit_buy(self, transactionNum, params):
@@ -307,7 +305,7 @@ class CMDHandler:
             previous_timer.cancel()
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.sell_timeout_handler, [user_id]) # 60 seconds
+        commit_timer = Timer(60.0, self.sell_timeout_handler, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_sell_timers.update({user_id: commit_timer})    
 
@@ -324,7 +322,7 @@ class CMDHandler:
 
         # Free the reserved stocks.
         users_account = Accounts.objects.get(user_id=user_id)
-        users_stock = users_account.stocks.get(symbol=users_sell['stock_symbol'])
+        users_stock = users_account.stocks.get(symbol=users_sell['stock'])
         users_stock.available = users_stock.available + decimal.Decimal(users_sell['num_stocks'])
         users_account.save()
 
@@ -332,7 +330,7 @@ class CMDHandler:
         print("The SELL command has expired and will be re-issued.")
 
         # Re-issue the SELL command.
-        self.sell([user_id, users_sell['stock'], users_sell['amount']])
+        self.sell(transactionNum = transactionNum, params = [user_id, users_sell['stock'], users_sell['amount']])
 
     # params: user_id
     def commit_sell(self, transactionNum, params):
@@ -505,9 +503,6 @@ class CMDHandler:
 
         # Add the user to the list of auto_buys for the stock
         self.polling_stocks.add_user_autobuy(user_id, stock_symbol)
-        #auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
-        #if user_id not in auto_transactions['auto_buy']:
-        #   auto_transactions['auto_buy'].append(user_id)
 
     # params: user_id, stock_symbol
     def cancel_set_buy(self, transactionNum, params):
@@ -539,13 +534,6 @@ class CMDHandler:
 
         # Remove the user from the stock polling
         self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
-        #auto_transactions = self.user_polling_stocks.get(stock_symbol, None)
-        #if auto_transactions is not None:
-        #    try:
-        #        auto_transactions['auto_buy'].remove(user_id)
-        #    except ValueError:
-        #        # User wasn't in list. Shouldn't happen but non-fatal if it does.
-        #        pass
 
         # Notify user.
         print(f"Successfully cancelled the auto buy for stock {stock_symbol}.")
@@ -642,9 +630,6 @@ class CMDHandler:
         
         # Add user to the list of auto_sells for the stock
         self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
-        #auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
-        #if user_id not in auto_transactions['auto_sell']:
-        #    auto_transactions['auto_sell'].append(user_id)
 
     # params: user_id, stock_symbol
     def cancel_set_sell(self, transactionNum, params):
@@ -671,14 +656,14 @@ class CMDHandler:
             users_auto_sell = None
             try:
                 users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
-                bad_cmd = False
             except:
                 # No auto sell.
                 pass
-
-            # Remove the auto sell.
-            users_account.auto_sell.remove(users_auto_sell)
-            reserved_amount = users_auto_sell.amount
+            else:
+                # Remove the auto sell.
+                users_account.auto_sell.remove(users_auto_sell)
+                reserved_amount = users_auto_sell.amount
+                bad_cmd = False
         
         if bad_cmd == True:
             # No SET_SELL commands have been issued.
@@ -695,13 +680,6 @@ class CMDHandler:
 
         # Remove the user from the auto_sell list
         self.quote_polling.remove_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
-        #auto_transactions = self.user_polling_stocks.get(stock_symbol, None)
-        #if auto_transactions is not None:
-        #    try:
-        #        auto_transactions['auto_sell'].remove(user_id)
-        #    except ValueError:
-        #        # User wasn't in list. Shouldn't happen but non-fatal if it does.
-        #        pass
 
         # Notify user.
         print(f"Successfully cancelled automatic selling of stock {stock_symbol}.")
@@ -722,7 +700,6 @@ class CMDHandler:
     def display_summary(self, transactionNum, params):
         print("DISPLAY_SUMMARY: ", params)
         UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "DISPLAY_SUMMARY")
-
 
     def unknown_cmd(self, params):
 
