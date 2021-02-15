@@ -1,1 +1,86 @@
-{}
+{
+    "userCommand": [
+      {
+        "timestamp": "1609459200000",
+        "server": "CLT1",
+        "transactionNum": "1",
+        "command": "ADD",
+        "username": "jiosesdo",
+        "funds": "100.00"
+      },
+      {
+        "timestamp": "1609459200000",
+        "server": "CLT1",
+        "transactionNum": "2",
+        "command": "BUY",
+        "username": "jiosesdo",
+        "stockSymbol": "ABC",
+        "funds": "100.00"
+      },
+      {
+        "timestamp": "1609459200000",
+        "server": "CLT2",
+        "transactionNum": "3",
+        "command": "BUY",
+        "username": "skelsioe",
+        "stockSymbol": "DEF",
+        "funds": "1000.00"
+      },
+      {
+        "timestamp": "1609459200000",
+        "server": "CLT2",
+        "transactionNum": "4",
+        "command": "SELL",
+        "username": "bob",
+        "stockSymbol": "GHI",
+        "funds": "1000.00"
+      }
+    ],
+    "accountTransaction": [
+      {
+        "timestamp": "1609459200000",
+        "server": "CLT2",
+        "transactionNum": "1",
+        "action": "add",
+        "username": "jiosesdo",
+        "funds": "100.00"
+      },
+      {
+        "timestamp": "1609459200000",
+        "server": "CLT2",
+        "transactionNum": "2",
+        "action": "remove",
+        "username": "jiosesdo",
+        "funds": "100.00"
+      }
+    ],
+    "systemEvent": {
+      "timestamp": "1609459200000",
+      "server": "HSD1",
+      "transactionNum": "2",
+      "command": "BUY",
+      "username": "jiosesdo",
+      "stockSymbol": "ABC",
+      "funds": "100.00"
+    },
+    "quoteServer": {
+      "timestamp": "1609459200000",
+      "server": "QSRV1",
+      "transactionNum": "2",
+      "quoteServerTime": "1167631203000",
+      "username": "jiosesdo",
+      "stockSymbol": "ABC",
+      "price": "10.00",
+      "cryptokey": "IRrR7UeTO35kSWUgG0QJKmB35sL27FKM7AVhP5qpjCgmWQeXFJs35g=="
+    },
+    "errorEvent": {
+      "timestamp": "1609459200000",
+      "server": "CLT2",
+      "transactionNum": "4",
+      "command": "SELL",
+      "username": "bob",
+      "stockSymbol": "GHI",
+      "funds": "1000.00",
+      "errorMessage": "Account bob does not exist"
+    }
+}

@@ -11,4 +11,4 @@ def print_data():
    if request.method == 'POST':
       result = request.form
       # submit request to rabbit mq channel
-      return "Request successfully received"
+#       return "Request successfully received"
