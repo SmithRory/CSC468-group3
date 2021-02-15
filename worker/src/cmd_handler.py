@@ -172,7 +172,7 @@ class CMDHandler:
         users_account.save()
 
         # Re-issue the buy command.
-        self.buy([user_id, users_buy['stock'], users_buy['amount']])
+        self.buy(transactionNum=transactionNum, params=[user_id, users_buy['stock'], users_buy['amount']])
 
     # params: user_id
     def commit_buy(self, transactionNum, params):
@@ -334,7 +334,7 @@ class CMDHandler:
         print("The SELL command has expired and will be re-issued.")
 
         # Re-issue the SELL command.
-        self.sell([user_id, users_sell['stock'], users_sell['amount']])
+        self.sell(transactionNum = transactionNum, params = [user_id, users_sell['stock'], users_sell['amount']])
 
     # params: user_id
     def commit_sell(self, transactionNum, params):
