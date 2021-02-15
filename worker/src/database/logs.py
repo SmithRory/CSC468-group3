@@ -29,15 +29,15 @@ mongoengine.connect(host = MONGO_URI)
 #     funds = DecimalField(precision=2)
 #     errorMessage = StringField()
 #
-class SystemEventType(Document):
-    timestamp = StringField(required=True)
-    server = StringField(required=True)
-    transactionNum = IntField(required=True, min_value=0)
-    command = StringField(required=True)
-    username = StringField()
-    stockSymbol = StringField(max_length=3)
-    filename = StringField()
-    funds = DecimalField(precision=2)
+class SystemEventType(mongoengine.EmbeddedDocument):
+    timestamp = mongoengine.IntField(required=True)
+    server = mongoengine.StringField(required=True)
+    transactionNum = mongoengine.IntField(required=True, min_value=0)
+    command = mongoengine.StringField(required=True)
+    username = mongoengine.StringField()
+    stockSymbol = mongoengine.StringField(max_length=3)
+    filename = mongoengine.StringField()
+    funds = mongoengine.DecimalField(precision=2)
 
     def log(self, timestamp, server, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None):
                     # Get all the logs.
@@ -105,10 +105,10 @@ class UserCommandType(mongoengine.EmbeddedDocument):
 
 class LogType(mongoengine.Document):
 
-    userCommand = EmbeddedDocumentListField(UserCommandType)
+    userCommand = mongoengine.EmbeddedDocumentListField(UserCommandType)
     quoteServer = mongoengine.EmbeddedDocumentListField(QuoteServerType)
-    accountTransaction = EmbeddedDocumentListField(AccountTransactionType)
-    systemEvent = EmbeddedDocumentListField(SystemEventType)
+    accountTransaction = mongoengine.EmbeddedDocumentListField(AccountTransactionType)
+    systemEvent = mongoengine.EmbeddedDocumentListField(SystemEventType)
 #     errorEvent = EmbeddedDocumentListField(ErrorEventType)
 #     debugEvent = EmbeddedDocumentListField(DebugType)
 
