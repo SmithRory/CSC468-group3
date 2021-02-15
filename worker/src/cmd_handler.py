@@ -1,10 +1,11 @@
 from database.accounts import Accounts, Stocks, AutoTransaction, get_users
+from database.logs import get_logs, AccountTransactionType, UserCommandType, SystemEventType
 from mongoengine import DoesNotExist
 from threading import Timer
 from math import floor
 from legacy import quote, quote_cache, quote_polling
 from LogFile import log_handler
-from database.logs import get_logs
+import time
 
 import decimal
 
@@ -39,9 +40,10 @@ class CMDHandler:
         self.polling_thread.start()
 
     # params: user_id, amount
-    def add(self, params):
+    def add(self, transactionNum, params):
         amount = params[1]
         user_id = params[0]
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "ADD", username=user_id, funds=amount)
 
         # Get the user
         # Note: user.account will return a 'float' if the user
@@ -77,28 +79,33 @@ class CMDHandler:
         print(f"Successfully added ${amount} to account.")
 
     # params: user_id, stock_symbol
-    def quote(self, params):
+    def quote(self, transactionNum, params):
         print("QUOTE: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
 
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "QUOTE", username=user_id, stockSymbol=stock_symbol)
+
         # Get the quote from the stock server
-        value = quote.get_quote(user_id, stock_symbol)
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "QUOTE")
 
         # Forward the quote to the frontend so the user can see it
         print(f"{stock_symbol} has value {value}")
 
     # params: user_id, stock_symbol, amount
-    def buy(self, params):
+    def buy(self, transactionNum, params):
         print("BUY: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
         max_debt = float(params[2]) # Maximum dollar amount of the transaction
 
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=amount)
+
+
         # Get a quote for the stock the user wants to buy
-        value = quote.get_quote(user_id, stock_symbol)
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "BUY")
 
         # Find the number of stocks the user can buy
         num_stocks = floor(max_debt/value) # Ex. max_dept=$100,value=$15per/stock-> num_stocks=6
@@ -146,7 +153,7 @@ class CMDHandler:
         self.uncommitted_buy_timers.update({user_id: commit_timer})
 
     # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
-    def buy_timeout_handler(self, user_id):
+    def buy_timeout_handler(self, transactionNum, user_id):
 
         # Remove the timer
         timer = self.uncommitted_buy_timers.pop(user_id, None)
@@ -168,10 +175,12 @@ class CMDHandler:
         self.buy([user_id, users_buy['stock'], users_buy['amount']])
 
     # params: user_id
-    def commit_buy(self, params):
+    def commit_buy(self, transactionNum, params):
         print("COMMIT_BUY: ", params)
         
         user_id = params[0]
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "COMMIT_BUY", username=user_id)
 
         # Check to see if the user has issued a buy command.
         users_buy = self.uncommitted_buys.pop(user_id, None)
@@ -215,10 +224,12 @@ class CMDHandler:
         print("Successfully purchased stock.")
 
     # params: user_id
-    def cancel_buy(self, params):
+    def cancel_buy(self, transactionNum, params):
         print("CANCEL_BUY: ", params)
         
         user_id = params[0]
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_BUY", username=user_id)
 
         # Cancel the commit timer
         commit_timer = self.uncommitted_buy_timers.pop(user_id, None)
@@ -245,15 +256,17 @@ class CMDHandler:
         print("Successfully cancelled stock purchase.")
 
     # params: user_id, stock_symbol, amount
-    def sell(self, params):
+    def sell(self, transactionNum, params):
         print("SELL: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
         sell_amount = params[2] # dollar amount of the stock to sell
 
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount)
+
         # Get a quote for the stock the user wants to sell
-        value = quote.get_quote(user_id, stock_symbol)
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL")
 
         # Find the number of stocks the user owns.
         users_account = Accounts.objects.get(user_id=user_id)
@@ -301,7 +314,7 @@ class CMDHandler:
         self.uncommitted_sell_timers.update({user_id: commit_timer})    
 
     # Gets called when a SELL command has timed out (no COMMIT or CANCEL).
-    def sell_timeout_handler(self, user_id):
+    def sell_timeout_handler(self, transactionNum, user_id):
 
         # Remove the timer.
         timer = self.uncommitted_sell_timers.pop(user_id, None)
@@ -324,10 +337,12 @@ class CMDHandler:
         self.sell([user_id, users_sell['stock'], users_sell['amount']])
 
     # params: user_id
-    def commit_sell(self, params):
+    def commit_sell(self, transactionNum, params):
         print("COMMIT_SELL: ", params)
 
         user_id = params[0]
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "COMMIT_SELL", username=user_id)
 
         # Check to see if the user has issued a sell command.
         users_sell = self.uncommitted_sells.pop(user_id, None)
@@ -379,11 +394,13 @@ class CMDHandler:
         print(f"Successfully sold ${profit} of stock {users_sell['stock']}.")
 
     # params: user_id
-    def cancel_sell(self, params):
+    def cancel_sell(self, transactionNum, params):
         print("CANCEL_SELL: ", params)
 
         user_id = params[0]
-        
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SELL", username=user_id)
+
         # Cancel the timer.
         timer = self.uncommitted_sell_timers.pop(user_id, None)
         if timer is not None:
@@ -410,12 +427,14 @@ class CMDHandler:
         print("Successfully cancelled sell transaction.")
 
     # params: user_id, stock_symbol, amount
-    def set_buy_amount(self, params):
+    def set_buy_amount(self, transactionNum, params):
         print("SET_BUY_AMOUNT: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
         buy_amount = round(params[2]) # Can only buy a whole number of shares.
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=buy_amount)
 
         # Add the stock and amount to the user's auto_buy list
 
@@ -440,12 +459,14 @@ class CMDHandler:
         print(f"Successful set to buy {buy_amount} stocks of {stock_symbol} automatically. Please issue SET_BUY_TRIGGER to set the trigger price.")
 
     # params: user_id, stock_symbol, amount
-    def set_buy_trigger(self, params):
+    def set_buy_trigger(self, transactionNum, params):
         print("SET_BUY_TRIGGER: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
         buy_trigger = params[2]
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger)
 
         # Check the user has issued a SET_BUY_AMOUNT for the given stock.
         users_account = Accounts.objects.get(user_id=user_id)
@@ -490,11 +511,13 @@ class CMDHandler:
         #   auto_transactions['auto_buy'].append(user_id)
 
     # params: user_id, stock_symbol
-    def cancel_set_buy(self, params):
+    def cancel_set_buy(self, transactionNum, params):
         print("CANCEL_SET_BUY: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol)
 
         # Check to see if the user has an auto buy for this stock.
         users_account = Accounts.objects.get(user_id=user_id)
@@ -529,12 +552,14 @@ class CMDHandler:
         print(f"Successfully cancelled the auto buy for stock {stock_symbol}.")
 
     # params: user_id, stock_symbol, amount
-    def set_sell_amount(self, params):
+    def set_sell_amount(self, transactionNum, params):
         print("SET_SELL_AMOUNT: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
         sell_amount = floor(params[2]) # Can only sell a whole number of shares.
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount)
 
         users_account = Accounts.objects.get(user_id=user_id)
 
@@ -571,12 +596,14 @@ class CMDHandler:
         print(f"Successfully set to sell {sell_amount} stocks of {stock_symbol} automatically. Please issue SET_SELL_TRIGGER to set the trigger price.")
 
     # params: user_id, stock_symbol, amount
-    def set_sell_trigger(self, params):
+    def set_sell_trigger(self, transactionNum, params):
         print("SET_SELL_TRIGGER: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
         sell_trigger = params[2]
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger)
 
         # Check the user has issused a SET_SELL_AMOUNT
         pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)
@@ -621,11 +648,14 @@ class CMDHandler:
         #    auto_transactions['auto_sell'].append(user_id)
 
     # params: user_id, stock_symbol
-    def cancel_set_sell(self, params):
+    def cancel_set_sell(self, transactionNum, params):
         print("CANCEL_SET_SELL: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
+
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol)
+
 
         bad_cmd = True
         reserved_amount = 0
@@ -679,17 +709,22 @@ class CMDHandler:
         print(f"Successfully cancelled automatic selling of stock {stock_symbol}.")
 
     # params: filename, user_id(optional)
-    def dumplog(self, params):
+    def dumplog(self, transactionNum, params):
+
         # use user_id here to get data from databaseCA
         filename = params[0]
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "DUMPLOG", filename=filename)
+
         json_data = get_logs() #this will be logs we get from the database
         log_handler.convertLogFile(json_data, filename)
 
         print("DUMPLOG: ", filename)
 
     # params: user_id
-    def display_summary(self, params):
+    def display_summary(self, transactionNum, params):
         print("DISPLAY_SUMMARY: ", params)
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "DISPLAY_SUMMARY")
+
 
     def unknown_cmd(self, params):
 
@@ -698,7 +733,7 @@ class CMDHandler:
 
         print("UNKNOWN COMMAND!")
 
-    def handle_command(self, cmd, params):
+    def handle_command(self, transactionNum, cmd, params):
         
         switch = {
             "ADD": self.add,
@@ -726,4 +761,4 @@ class CMDHandler:
         # Log UserCommandType.log
 
         # Call the function to handle the command
-        func(params)
+        func(transactionNum, params)
