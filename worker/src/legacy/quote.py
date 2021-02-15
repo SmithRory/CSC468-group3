@@ -52,6 +52,6 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
     # add user funds after confirming
     # System Event log since received from cache
 
-    SystemEventType().log(timestampForLog, "Cache-Quote", transactionNum, userCommand, username=uid, stockSymbol=stock_name):
+    SystemEventType().log(timestampForLog, "Cache-Quote", transactionNum, userCommand, username=uid, stockSymbol=stock_name)
 
     return result.value

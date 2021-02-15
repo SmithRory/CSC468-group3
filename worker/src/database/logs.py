@@ -115,6 +115,6 @@ class LogType(mongoengine.Document):
 
 def get_logs():
 
-    print(LogType.objects.first().to_json())
+#     print(LogType.objects.first().to_json())
 
     return LogType.objects.first().to_json()
