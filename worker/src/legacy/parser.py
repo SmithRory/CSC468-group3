@@ -14,6 +14,8 @@ def command_parse(command: str):
     for i, t in enumerate(tokens):
         if is_float(t):
             tokens[i] = float(t)
+        else:
+            tokens[i] = tokens[i].strip()
 
     # return [tokens[0], (tokens[1], float(tokens[2]))]
     return [tokens[0], tuple(tokens[1:])]
