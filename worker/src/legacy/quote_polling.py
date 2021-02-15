@@ -3,6 +3,7 @@ import time
 from database.accounts import Accounts, Stocks
 from legacy import quote
 from mongoengine import DoesNotExist
+import decimal
 
 # This class exists so the system can keep track of which stocks to poll, and which users have auto
 # transactions for each of those stocks. This info will eventually be in a cache.
