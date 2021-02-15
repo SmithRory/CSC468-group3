@@ -40,13 +40,13 @@ class SystemEventType(mongoengine.EmbeddedDocument):
     funds = mongoengine.DecimalField(precision=2)
 
     def log(self, timestamp, server, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None):
-        # Get all the logs.
-        logs = LogType.objects.first()
-        # Create the new log.
-        sys_evnt_log = SystemEventType(timestamp=timestamp, server=server, transactionNum=transactionNum, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
-        # Append the new command log.
-        logs.systemEvent.append(sys_evnt_log)
-        logs.save()
+                    # Get all the logs.
+                    logs = LogType.objects.first()
+                    # Create the new log.
+                    sys_evnt_log = SystemEventType(timestamp=timestamp, server=server, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
+                    # Append the new command log.
+                    logs.systemEvent.append(sys_evnt_log)
+                    logs.save()
 
 class AccountTransactionType(mongoengine.EmbeddedDocument):
     timestamp = mongoengine.IntField(required=True)
