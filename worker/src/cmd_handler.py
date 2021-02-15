@@ -48,11 +48,14 @@ class CMDHandler:
         try:
             user = Accounts.objects.get(user_id=user_id)
         except DoesNotExist:
-            # Create the user if they don't exist
-            # Add into the accounts
+            # Create the user if they don't exist.
             user = Accounts(user_id=user_id)
             user.account = user.account + amount
             user.available = user.available + amount
+
+            # TODO
+            # Log DebugType.log that a user has been added do the system.
+
         else:
             # Update the account.
             user.account = user.account + decimal.Decimal(amount)
@@ -64,6 +67,10 @@ class CMDHandler:
         except Exception as e:
             # Let user know of the error
             print(e)
+
+            # TODO
+            # Log ErrorEventType.log that the user could not be saved.
+            return
 
         # Notify the user
         print(f"Successfully added ${amount} to account.")
@@ -97,6 +104,9 @@ class CMDHandler:
         if num_stocks==0:
             # Notify the user the stock costs more than the amount given.
             print(f"The price of stock {stock_symbol} ({value}) is more than the amount requested ({max_debt}).")
+            
+            # TODO
+            # log ErrorEventType.log
             return
         
         # Check if the user has enough available
@@ -105,6 +115,10 @@ class CMDHandler:
         if trans_price > users_account.available:
             # Notify the user they don't have enough available funds.
             print("Insufficent funds to purchase stock.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
         else:
             # Decrement the amount of available funds until a COMMIT or CANCEL happens.
@@ -163,6 +177,10 @@ class CMDHandler:
         if users_buy is None:
             # Must issue a BUY command first
             print("Invalid command. A BUY command has not been issued.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
 
         # Cancel the commit timer
@@ -211,6 +229,10 @@ class CMDHandler:
         if users_buy is None:
             # Must issue a BUY command first
             print("Invalid command. A BUY command has not been issued.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
 
         # Free the reserved funds.
@@ -240,6 +262,10 @@ class CMDHandler:
         except DoesNotExist:
             # The user does not own any of the stock they want to sell.
             print(f"Invalid SELL command. The stock {stock_symbol} is not owned.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
 
         # Check if the user has enough of the given stock.
@@ -247,6 +273,9 @@ class CMDHandler:
         if num_to_sell > users_stock.available:
             # The user does not own enough of this stock
             print(f"Insufficent number of stocks owned. Stocks needed ({num_to_sell}), stocks available ({users_stock.available}).")
+            
+            # TODO
+            # Log ErrorEventType
             return
 
         # Forward the user the transaction info, prompt user to commit or cancel the buy command.
@@ -284,7 +313,7 @@ class CMDHandler:
         # Free the reserved stocks.
         users_account = Accounts.objects.get(user_id=user_id)
         users_stock = users_account.stocks.get(symbol=users_sell['stock_symbol'])
-        users_stock.available = users_stock.available + decimal.Decimal(num_to_sell)
+        users_stock.available = users_stock.available + decimal.Decimal(users_sell['num_stocks'])
         users_account.save()
 
         # Notify the user their SELL has expired.
@@ -304,6 +333,10 @@ class CMDHandler:
         if users_sell is None:
             # Must issue a SELL command first.
             print("Invalid command. Must issue a SELL command first.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
         
         # Cancel the commit timer.
@@ -321,6 +354,10 @@ class CMDHandler:
         except DoesNotExist:
             # This should never happen.
             print(f"Error. Stock {users_sell['stock']} not found in users account.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
         
         if users_stock.amount == users_sell['num_stocks']:
@@ -356,6 +393,10 @@ class CMDHandler:
         if users_sell is None:
             # Must issue a SELL command.
             print("Invalid command. A SELL command has not been issued.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
 
         # Free the reserved stocks.
@@ -413,6 +454,10 @@ class CMDHandler:
         except DoesNotExist:
             # No SET_BUY_AMOUNT issued.
             print(f"Invalid command. A SET_BUY_AMOUNT must be issued for stock {stock_symbol} before a trigger can be set.")
+            
+            # TODO
+            # log ErrorEventType.log
+            
             return
 
         # Check the user's account has enough money available.
@@ -420,6 +465,10 @@ class CMDHandler:
         if transaction_price > users_account.available:
             # Insufficent funds.
             print(f"Invalid buy trigger. Insufficent funds for an auto buy. Funds available (${users_account.available}), auto buy cost (${transaction_price}).")
+            
+            # TODO
+            # log ErrorEventType.log
+            
             return
 
         # Set the auto buy trigger.
@@ -454,6 +503,10 @@ class CMDHandler:
         except DoesNotExist:
             # User hasn't set up and auto buy.
             print(f"Invalid command. No auto buy setup for stock {stock_symbol}.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
 
         # Remove the auto buy. Add the reserved funds.
@@ -491,10 +544,18 @@ class CMDHandler:
         except DoesNotExist:
             # The user does not own any of the stock they want to sell.
             print(f"Invalid command. The stock {stock_symbol} is not owned.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
 
         if users_stock.available < sell_amount:
             print(f"Invalid command. Number of available stocks for {stock_symbol} is ({users_stock.available}) and is less than the amount set to sell {sell_amount}.")
+            
+            # TODO
+            # log ErrorEventType.log
+            
             return
 
         # Decrement the number of available shares.
@@ -520,6 +581,10 @@ class CMDHandler:
         pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)
         if pending_auto_sell is None:
             print("Invalid command. Issue a SET_SELL_AMOUNT for this stock before setting the trigger price.")
+            
+            # TODO
+            # log ErrorEventType.log
+            
             return
 
         # Create the auto_sell
@@ -588,6 +653,10 @@ class CMDHandler:
         if bad_cmd == True:
             # No SET_SELL commands have been issued.
             print(f"Invalid command. No auto sell has been setup for stock {stock_symbol}.")
+
+            # TODO
+            # log ErrorEventType.log
+
             return
 
         # Release the reserved stocks.
@@ -622,6 +691,10 @@ class CMDHandler:
         print("DISPLAY_SUMMARY: ", params)
 
     def unknown_cmd(self, params):
+
+        # TODO
+        # log ErrorEventType.log
+
         print("UNKNOWN COMMAND!")
 
     def handle_command(self, cmd, params):
@@ -647,5 +720,9 @@ class CMDHandler:
         
         # Get the function
         func = switch.get(cmd, self.unknown_cmd)
+
+        # TODO
+        # Log UserCommandType.log
+
         # Call the function to handle the command
         func(params)

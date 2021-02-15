@@ -38,6 +38,9 @@ def get_quote(uid : str, stock_name : str) -> float:
             )
         })
 
+        # TODO
+        # Log with QuoteServerType.log
+
         return response[0] # Only returns the stock price
 
     return result.value
