@@ -1,0 +1,8 @@
+[package]
+name="manager"
+version="0.1.0"
+authors=["Rory Smith <rory.smith2475@gmail.com>"]
+
+[dependencies]
+bollard="0.9"
+lapin="1.6.6"

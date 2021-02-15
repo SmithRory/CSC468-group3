@@ -1,12 +1,25 @@
-FROM python:latest
+FROM rust:latest AS builder
 
-RUN mkdir /app
+# Install dependencies
+RUN apt update
+WORKDIR /app/src
+RUN USER=root cargo new --bin manager
+WORKDIR /app/src/manager
+COPY Cargo.toml Cargo.lock ./
 
+# Cache dependencies
+RUN cargo build --release
+
+# Build
+COPY src ./src
+RUN cargo install --path .
+
+FROM debian:buster-slim
 WORKDIR /app
+RUN apt-get update \
+    # && apt-get install -y openssl ca-certificates \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY requirements.txt /app
-COPY src/ /app
-
-RUN pip install -r requirements.txt
-
-CMD ["python3", "main.py"]
+COPY --from=builder /app/src/manager/target/release/manager ./
+CMD ["/app/manager"]
