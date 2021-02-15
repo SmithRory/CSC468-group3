@@ -28,9 +28,9 @@ parser.add_argument('-v', '--verbose',
     action='store_true' ,dest='verbose', default=False,
     help='Print debug information'
 )
-parser.add_argument('--queue',
+parser.add_argument('--route',
     dest='queue', default='frontend_queue',
-    help='Rabbit queue name'
+    help='Specify routing key used by the exchange'
 )
 parser.add_argument('--exchange',
     dest='exchange', default='frontend',
