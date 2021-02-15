@@ -45,16 +45,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
         })
 
         # update after trying on quote server, update quote server time too
-        QuoteServerType().log(
-            round(timestampForLog*1000),
-            "Quote",
-            transactionNum,
-            response[0],
-            stock_name,
-            uid,
-            round(timestampForLog*1000),
-            response[3]
-        )
+        QuoteServerType().log(round(timestampForLog*1000), "Quote", transactionNum, response[0], stock_name, uid, response[3], response[4])
 
         return response[0] # Only returns the stock price
 

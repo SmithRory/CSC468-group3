@@ -101,7 +101,7 @@ class CMDHandler:
         stock_symbol = params[1]
         max_debt = float(params[2]) # Maximum dollar amount of the transaction
 
-        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=amount)
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt)
 
 
         # Get a quote for the stock the user wants to buy
