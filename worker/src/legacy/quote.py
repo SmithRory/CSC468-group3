@@ -4,12 +4,12 @@ import socket
 import time
 from . import parser
 from . import quote_cache
-from database.logs import QuoteServerType, LogType
+from database.logs import QuoteServerType, SystemEventType
 
 QUOTE_ADDRESS = "192.168.4.2"
 PORT = int(os.environ['QUOTE_SERVER_PORT'])
 
-def get_quote(uid : str, stock_name : str, transactionNum : int) -> float:
+def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : str) -> float:
     result = quote_cache.cache.get(stock_name, None)
     timestampForLog = round(time.time()*1000)
     
@@ -23,10 +23,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int) -> float:
             # This should throw an error but is left this way so it can be
             # tested outside the VM
 
-
-
-            log = LogType(quoteServer = [QuoteServerType(timestamp=timestampForLog, server="Quote", transactionNum=transactionNum, price=12334.3, stockSymbol=stock_name, username=uid, quoteServerTime=timestampForLog, cryptokey="tempkey")])
-            log.save()
+            QuoteServerType().log(timestampForLog, "Quote", transactionNum, 12334.3, stock_name, uid, timestampForLog, "tempkey")
 
             print("Unable to connect to legacy quote server")
             return 12345.6
@@ -47,16 +44,14 @@ def get_quote(uid : str, stock_name : str, transactionNum : int) -> float:
             )
         })
 
-        log = QuoteServerType(timestamp=timestampForLog, server="Quote", transactionNum=transactionNum, price=12334.3, stockSymbol=stock_name, username=uid, quoteServerTime=timestampForLog, cryptokey="tempkey")
-        log.save()
         # update after trying on quote server, update quote server time too
+        QuoteServerType().log(round(timestampForLog*1000), "Quote", transactionNum, response[0], stock_name, uid, round(timestampForLog*1000), response[3])
 
-        print("SSSSSSSSSSS")
-        print(response)
-        print("TTTTTTTTTTT")
         return response[0] # Only returns the stock price
 
-#     log = SystemEventType(timestamp=timestampForLog, server="QuoteCache", transactionNum=transactionNum, command="QUOTE", username=uid, stockSymbol=stock_name).save()
     # add user funds after confirming
+    # System Event log since received from cache
+
+    SystemEventType().log(timestampForLog, "Cache-Quote", transactionNum, userCommand, username=uid, stockSymbol=stock_name):
 
     return result.value

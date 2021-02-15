@@ -76,14 +76,14 @@ class CMDHandler:
         print(f"Successfully added ${amount} to account.")
 
     # params: user_id, stock_symbol
-    def quote(self, params):
+    def quote(self, transaction, params):
         print("QUOTE: ", params)
 
         user_id = params[0]
         stock_symbol = params[1]
 
         # Get the quote from the stock server
-        value = quote.get_quote(user_id, stock_symbol)
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "QUOTE")
 
         # Forward the quote to the frontend so the user can see it
         print(f"{stock_symbol} has value {value}")
@@ -697,7 +697,7 @@ class CMDHandler:
 
         print("UNKNOWN COMMAND!")
 
-    def handle_command(self, cmd, params):
+    def handle_command(self, transactionNum, cmd, params):
         
         switch = {
             "ADD": self.add,
@@ -725,4 +725,4 @@ class CMDHandler:
         # Log UserCommandType.log
 
         # Call the function to handle the command
-        func(params)
+        func(transactionNum, params)
