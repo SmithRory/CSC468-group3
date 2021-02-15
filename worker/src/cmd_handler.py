@@ -14,8 +14,6 @@ import decimal
 
 # TODO: extract repeated logic into their own function
 
-# TODO: logging
-
 # TODO: check the user exists before executing commands (this is only being done for the ADD so far)
 
 # TODO: turn dictionaries into cache 
@@ -506,9 +504,6 @@ class CMDHandler:
 
         # Add the user to the list of auto_buys for the stock
         self.polling_stocks.add_user_autobuy(user_id, stock_symbol)
-        #auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
-        #if user_id not in auto_transactions['auto_buy']:
-        #   auto_transactions['auto_buy'].append(user_id)
 
     # params: user_id, stock_symbol
     def cancel_set_buy(self, transactionNum, params):
@@ -636,9 +631,6 @@ class CMDHandler:
         
         # Add user to the list of auto_sells for the stock
         self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
-        #auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
-        #if user_id not in auto_transactions['auto_sell']:
-        #    auto_transactions['auto_sell'].append(user_id)
 
     # params: user_id, stock_symbol
     def cancel_set_sell(self, transactionNum, params):
@@ -690,13 +682,6 @@ class CMDHandler:
 
         # Remove the user from the auto_sell list
         self.quote_polling.remove_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
-        #auto_transactions = self.user_polling_stocks.get(stock_symbol, None)
-        #if auto_transactions is not None:
-        #    try:
-        #        auto_transactions['auto_sell'].remove(user_id)
-        #    except ValueError:
-        #        # User wasn't in list. Shouldn't happen but non-fatal if it does.
-        #        pass
 
         # Notify user.
         print(f"Successfully cancelled automatic selling of stock {stock_symbol}.")
@@ -717,7 +702,6 @@ class CMDHandler:
     def display_summary(self, transactionNum, params):
         print("DISPLAY_SUMMARY: ", params)
         UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "DISPLAY_SUMMARY")
-
 
     def unknown_cmd(self, params):
 
