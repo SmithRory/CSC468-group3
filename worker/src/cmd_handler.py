@@ -1,5 +1,5 @@
 from database.accounts import Accounts, Stocks, AutoTransaction, get_users
-from database.logs import get_logs, AccountTransactionType, UserCommandType, SystemEventType
+from database.logs import get_logs, AccountTransactionType, UserCommandType, SystemEventType, ErrorEventType
 from mongoengine import DoesNotExist
 from threading import Timer
 from math import floor
@@ -72,8 +72,8 @@ class CMDHandler:
             # Let user know of the error
             print(e)
 
-            # TODO
-            # Log ErrorEventType.log that the user could not be saved.
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "ADD", username=user_id, funds=amount, errorMessage="The user could not be saved")
+
             return
 
         # Notify the user
@@ -102,7 +102,7 @@ class CMDHandler:
         stock_symbol = params[1]
         max_debt = float(params[2]) # Maximum dollar amount of the transaction
 
-        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=amount)
+        UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt)
 
 
         # Get a quote for the stock the user wants to buy
@@ -113,9 +113,8 @@ class CMDHandler:
         if num_stocks==0:
             # Notify the user the stock costs more than the amount given.
             print(f"The price of stock {stock_symbol} ({value}) is more than the amount requested ({max_debt}).")
-            
-            # TODO
-            # log ErrorEventType.log
+
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt, errorMessage="The price of stock is more than the requested amount")
             return
         
         # Check if the user has enough available
@@ -125,8 +124,7 @@ class CMDHandler:
             # Notify the user they don't have enough available funds.
             print("Insufficent funds to purchase stock.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt, errorMessage="Insufficient funds")
 
             return
         else:
@@ -189,8 +187,7 @@ class CMDHandler:
             # Must issue a BUY command first
             print("Invalid command. A BUY command has not been issued.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "COMMIT_BUY", username=user_id, errorMessage="Invalid command, a buy command has not been issued.")
 
             return
 
@@ -245,8 +242,7 @@ class CMDHandler:
             # Must issue a BUY command first
             print("Invalid command. A BUY command has not been issued.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_BUY", username=user_id, errorMessage="Invalid command, a BUY command has not been issued yet")
 
             return
 
@@ -280,8 +276,7 @@ class CMDHandler:
             # The user does not own any of the stock they want to sell.
             print(f"Invalid SELL command. The stock {stock_symbol} is not owned.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage="Invalid command, stock is not owned")
 
             return
 
@@ -289,10 +284,10 @@ class CMDHandler:
         num_to_sell = floor(sell_amount/value)
         if num_to_sell > users_stock.available:
             # The user does not own enough of this stock
-            print(f"Insufficent number of stocks owned. Stocks needed ({num_to_sell}), stocks available ({users_stock.available}).")
-            
-            # TODO
-            # Log ErrorEventType
+            print(f"Insufficient number of stocks owned. Stocks needed ({num_to_sell}), stocks available ({users_stock.available}).")
+
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage="Insufficient number of stocks owned")
+
             return
 
         # Forward the user the transaction info, prompt user to commit or cancel the buy command.
@@ -689,8 +684,7 @@ class CMDHandler:
             # No SET_SELL commands have been issued.
             print(f"Invalid command. No auto sell has been setup for stock {stock_symbol}.")
 
-            # TODO
-            # log ErrorEventType.log
+#             ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol, errorMessage="Invalid command, no auto sell has been set up")
 
             return
 
