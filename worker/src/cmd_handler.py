@@ -148,7 +148,7 @@ class CMDHandler:
             previous_timer.cancel()
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.buy_timeout_handler, [user_id]) # 60 seconds
+        commit_timer = Timer(60.0, self.buy_timeout_handler, {'transactionNum': transactionNum, 'user_id': user_id}) # 60 seconds
         commit_timer.start()
         self.uncommitted_buy_timers.update({user_id: commit_timer})
 
@@ -309,7 +309,7 @@ class CMDHandler:
             previous_timer.cancel()
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.sell_timeout_handler, [user_id]) # 60 seconds
+        commit_timer = Timer(60.0, self.sell_timeout_handler, {'transactionNum': transactionNum, 'user_id': user_id}) # 60 seconds
         commit_timer.start()
         self.uncommitted_sell_timers.update({user_id: commit_timer})    
 
