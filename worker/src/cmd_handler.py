@@ -148,7 +148,7 @@ class CMDHandler:
             previous_timer.cancel()
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.buy_timeout_handler, {'transactionNum': transactionNum, 'user_id': user_id}) # 60 seconds
+        commit_timer = Timer(60.0, self.buy_timeout_handler, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_buy_timers.update({user_id: commit_timer})
 
@@ -309,7 +309,7 @@ class CMDHandler:
             previous_timer.cancel()
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.sell_timeout_handler, {'transactionNum': transactionNum, 'user_id': user_id}) # 60 seconds
+        commit_timer = Timer(60.0, self.sell_timeout_handler, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_sell_timers.update({user_id: commit_timer})    
 
@@ -540,13 +540,6 @@ class CMDHandler:
 
         # Remove the user from the stock polling
         self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
-        #auto_transactions = self.user_polling_stocks.get(stock_symbol, None)
-        #if auto_transactions is not None:
-        #    try:
-        #        auto_transactions['auto_buy'].remove(user_id)
-        #    except ValueError:
-        #        # User wasn't in list. Shouldn't happen but non-fatal if it does.
-        #        pass
 
         # Notify user.
         print(f"Successfully cancelled the auto buy for stock {stock_symbol}.")
