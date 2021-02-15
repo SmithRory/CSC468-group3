@@ -326,7 +326,7 @@ class CMDHandler:
 
         # Free the reserved stocks.
         users_account = Accounts.objects.get(user_id=user_id)
-        users_stock = users_account.stocks.get(symbol=users_sell['stock_symbol'])
+        users_stock = users_account.stocks.get(symbol=users_sell['stock'])
         users_stock.available = users_stock.available + decimal.Decimal(users_sell['num_stocks'])
         users_account.save()
 
@@ -672,14 +672,14 @@ class CMDHandler:
             users_auto_sell = None
             try:
                 users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
-                bad_cmd = False
             except:
                 # No auto sell.
                 pass
-
-            # Remove the auto sell.
-            users_account.auto_sell.remove(users_auto_sell)
-            reserved_amount = users_auto_sell.amount
+            else:
+                # Remove the auto sell.
+                users_account.auto_sell.remove(users_auto_sell)
+                reserved_amount = users_auto_sell.amount
+                bad_cmd = False
         
         if bad_cmd == True:
             # No SET_SELL commands have been issued.
