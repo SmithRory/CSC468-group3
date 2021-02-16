@@ -1,25 +1,24 @@
-FROM rust:latest AS builder
+FROM rust:latest
 
-# Install dependencies
-RUN apt update
-WORKDIR /app/src
-RUN USER=root cargo new --bin manager
-WORKDIR /app/src/manager
-COPY Cargo.toml Cargo.lock ./
+WORKDIR /usr/src
 
-# Cache dependencies
+# Create blank app
+RUN USER=root cargo new manager
+WORKDIR /usr/src/manager
+
+# We want dependencies cached, so copy those first.
+COPY Cargo.toml /usr/src/manager/
+COPY Cargo.lock /usr/src/manager/
+
+# This is a dummy build to get the dependencies cached.
 RUN cargo build --release
 
-# Build
-COPY src ./src
-RUN cargo install --path .
+# This is the actual build.
+COPY src/ /usr/src/manager/src
+RUN cargo build --release --verbose
+RUN mv /usr/src/manager/target/release/manager /bin
 
-FROM debian:buster-slim
-WORKDIR /app
-RUN apt-get update \
-    # && apt-get install -y openssl ca-certificates \
-    && apt clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+WORKDIR /
 
-COPY --from=builder /app/src/manager/target/release/manager ./
-CMD ["/app/manager"]
+# CMD ["/usr/src/manager/target/release/manager"]
+CMD ["/bin/manager"]
