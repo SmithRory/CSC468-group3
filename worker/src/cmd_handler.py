@@ -1,5 +1,5 @@
 from database.accounts import Accounts, Stocks, AutoTransaction, get_users
-from database.logs import get_logs, AccountTransactionType, UserCommandType, SystemEventType, ErrorEventType
+from database.logs import get_logs, AccountTransactionType, UserCommandType, SystemEventType, ErrorEventType, DebugType
 from mongoengine import DoesNotExist
 from threading import Timer
 from math import floor
@@ -130,10 +130,11 @@ class CMDHandler:
             # This is essentially reserving the funds.
             users_account.available = users_account.available - decimal.Decimal(trans_price)
 
+
         users_account.save()
 
         # Forward the user the quote, prompt user to commit or cancel the buy command.
-        print(f'Purchace price ({stock_symbol}): ${value} per stock x {num_stocks} stocks = ${trans_price}\nPlease issue COMMIT_BUY or CANCEL_BUY to complete the transaction.')
+        print(f'Purchase price ({stock_symbol}): ${value} per stock x {num_stocks} stocks = ${trans_price}\nPlease issue COMMIT_BUY or CANCEL_BUY to complete the transaction.')
         
         # Add the uncommitted buy to the list.
         uncommitted_buy = {user_id: {'stock': stock_symbol, 'num_stocks': num_stocks, 'quote': value, 'amount': max_debt}}
@@ -143,11 +144,14 @@ class CMDHandler:
         previous_timer = self.uncommitted_buy_timers.pop(user_id, None)
         if previous_timer is not None:
             previous_timer.cancel()
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt, debugMessage="Previous BUY timer cancelled for this user")
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
         commit_timer = Timer(60.0, self.buy_timeout_handler, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_buy_timers.update({user_id: commit_timer})
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt, debugMessage="New BUY timer started for the user")
+
 
     # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
     def buy_timeout_handler(self, transactionNum, user_id):
@@ -156,6 +160,8 @@ class CMDHandler:
         timer = self.uncommitted_buy_timers.pop(user_id, None)
         if timer is not None:
             timer.cancel()
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, debugMessage="BUY command has timed out")
+
         
         # Remove the pending buy
         users_buy = self.uncommitted_buys.pop(user_id, None)
@@ -170,6 +176,7 @@ class CMDHandler:
 
         # Re-issue the buy command.
         self.buy(transactionNum=transactionNum, params=[user_id, users_buy['stock'], users_buy['amount']])
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, debugMessage="BUY command is re-issued")
 
     # params: user_id
     def commit_buy(self, transactionNum, params):
@@ -193,6 +200,7 @@ class CMDHandler:
         commit_timer = self.uncommitted_buy_timers.pop(user_id, None)
         if commit_timer is not None:
             commit_timer.cancel()
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "COMMIT_BUY", username=user_id, debugMessage="BUY timer cancelled for the user")
 
         # Complete the transaction.
         # Deduct the cost of the purchase. Note: the amount has already been deducted from the available funds.
@@ -233,6 +241,7 @@ class CMDHandler:
         commit_timer = self.uncommitted_buy_timers.pop(user_id, None)
         if commit_timer is not None:
             commit_timer.cancel()
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_BUY", username=user_id, debugMessage="BUY trigger cancelled for this user")
             
         #Check to see if the user has issued a buy command.
         users_buy = self.uncommitted_buys.pop(user_id, None)
@@ -303,11 +312,13 @@ class CMDHandler:
         previous_timer = self.uncommitted_sell_timers.pop(user_id, None)
         if previous_timer is not None:
             previous_timer.cancel()
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage="Previous SELL timer cancelled for this user")
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
         commit_timer = Timer(60.0, self.sell_timeout_handler, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
-        self.uncommitted_sell_timers.update({user_id: commit_timer})    
+        self.uncommitted_sell_timers.update({user_id: commit_timer})
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage="New SELL timer started for this user")
 
     # Gets called when a SELL command has timed out (no COMMIT or CANCEL).
     def sell_timeout_handler(self, transactionNum, user_id):
@@ -316,6 +327,7 @@ class CMDHandler:
         timer = self.uncommitted_sell_timers.pop(user_id, None)
         if timer is not None:
             timer.cancel()
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "SELL", username=user_id, debugMessage="SELL command has timed out")
 
         # Remove the pending sell.
         users_sell = self.uncommitted_sells.pop(user_id, None)
@@ -331,6 +343,7 @@ class CMDHandler:
 
         # Re-issue the SELL command.
         self.sell(transactionNum = transactionNum, params = [user_id, users_sell['stock'], users_sell['amount']])
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "SELL", username=user_id, debugMessage="SELL command is re-issued")
 
     # params: user_id
     def commit_sell(self, transactionNum, params):
@@ -354,6 +367,7 @@ class CMDHandler:
         timer = self.uncommitted_sell_timers.pop(user_id, None)
         if timer is not None:
             timer.cancel()
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "COMMIT_SELL", username=user_id, debugMessage="SELL timer is cancelled for this user")
 
         # Complete the transaction.
         users_account = Accounts.objects.get(user_id=user_id)
@@ -400,6 +414,7 @@ class CMDHandler:
         timer = self.uncommitted_sell_timers.pop(user_id, None)
         if timer is not None:
             timer.cancel()
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SELL", username=user_id, debugMessage="SELL timer is cancelled for this user")
 
         # Check to see if the user has issued a SELL command.
         users_sell = self.uncommitted_sells.pop(user_id, None)
@@ -448,6 +463,7 @@ class CMDHandler:
 
         # Save the document.
         users_account.save()
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=buy_amount, debugMessage="AUTO BUY amount is now set, trigger reset as needed")
 
         # Notify the user.
         print(f"Successful set to buy {buy_amount} stocks of {stock_symbol} automatically. Please issue SET_BUY_TRIGGER to set the trigger price.")
@@ -487,6 +503,7 @@ class CMDHandler:
 
         # Set the auto buy trigger.
         users_auto_buy.trigger = buy_trigger
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, debugMessage="AUTO BUY trigger is set")
 
         # Deduct money from the available account
         users_account.available = users_account.available - decimal.Decimal(transaction_price)
@@ -523,8 +540,10 @@ class CMDHandler:
 
         # Remove the auto buy. Add the reserved funds.
         users_account.auto_buy.remove(users_auto_buy)
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol, debugMessage="AUTO BUY is removed")
         users_account.available = users_account.available + decimal.Decimal(users_auto_buy.amount * users_auto_buy.trigger)
         users_account.save()
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol, debugMessage="Auto BUY is remoed for this user")
 
         # Remove the user from the stock polling
         self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
@@ -570,6 +589,7 @@ class CMDHandler:
         # Add the auto sell to the dictionary until the SET_SELL_TRIGGER is received.
         pending_auto_sell = {(user_id,stock_symbol): {'sell_amount': sell_amount}}
         self.pending_sell_triggers.update(pending_auto_sell)
+        DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage="AUTO SELL amount is now set, trigger reset as needed")
 
         # Notify the user.
         print(f"Successfully set to sell {sell_amount} stocks of {stock_symbol} automatically. Please issue SET_SELL_TRIGGER to set the trigger price.")
@@ -584,7 +604,7 @@ class CMDHandler:
 
         UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger)
 
-        # Check the user has issused a SET_SELL_AMOUNT
+        # Check the user has issued a SET_SELL_AMOUNT
         pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)
         if pending_auto_sell is None:
             print("Invalid command. Issue a SET_SELL_AMOUNT for this stock before setting the trigger price.")
@@ -610,6 +630,7 @@ class CMDHandler:
 
             users_auto_sell.amount = pending_auto_sell['sell_amount']
             users_auto_sell.trigger = sell_trigger
+            DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, debugMessage="AUTO SELL trigger is set")
 
             users_stocks = users_account.stocks.get(symbol=stock_symbol)
             users_stocks.available = users_stocks.available + prev_stock_amount - users_auto_sell.amount
@@ -618,7 +639,8 @@ class CMDHandler:
 
         # Notify the user
         print(f"Successfully set an auto sell for {pending_auto_sell['sell_amount']} stocks of {stock_symbol} when the price is at least ${sell_trigger} per stock.")
-        
+
+
         # Add user to the list of auto_sells for the stock
         self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
 
@@ -652,6 +674,7 @@ class CMDHandler:
             else:
                 # Remove the auto sell.
                 users_account.auto_sell.remove(users_auto_sell)
+                DebugType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol, debugMessage="AUTO SELL is removed for this user")
                 reserved_amount = users_auto_sell.amount
                 bad_cmd = False
         
@@ -677,6 +700,7 @@ class CMDHandler:
     # params: filename, user_id(optional)
     def dumplog(self, transactionNum, params):
 
+        # Add functionality for handling user id
         # use user_id here to get data from databaseCA
         filename = params[0]
         UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "DUMPLOG", filename=filename)
@@ -693,7 +717,7 @@ class CMDHandler:
 
     def unknown_cmd(self, transactionNum, params):
 
-        ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "UNKNOWN_COMMAND", errorMessage="This is an unkown command!")
+        ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "UNKNOWN_COMMAND", errorMessage="This is an unknown command!")
 
         print("UNKNOWN COMMAND!")
 
