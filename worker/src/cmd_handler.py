@@ -120,7 +120,7 @@ class CMDHandler:
         users_account = Accounts.objects.get(user_id=user_id)
         if trans_price > users_account.available:
             # Notify the user they don't have enough available funds.
-            print("Insufficent funds to purchase stock.")
+            print("Insufficient funds to purchase stock.")
 
             ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt, errorMessage="Insufficient funds")
 
@@ -346,8 +346,7 @@ class CMDHandler:
             # Must issue a SELL command first.
             print("Invalid command. Must issue a SELL command first.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "COMMIT_SELL", username=user_id, errorMessage="Invalid command, please issue a sell command first")
 
             return
         
@@ -367,8 +366,7 @@ class CMDHandler:
             # This should never happen.
             print(f"Error. Stock {users_sell['stock']} not found in users account.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "COMMIT_SELL", username=user_id, errorMessage="Error! Stock is not found in the user's account")
 
             return
         
@@ -409,8 +407,7 @@ class CMDHandler:
             # Must issue a SELL command.
             print("Invalid command. A SELL command has not been issued.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SELL", username=user_id, errorMessage="Invalid command, a sell command has not been issued yet")
 
             return
 
@@ -473,20 +470,18 @@ class CMDHandler:
         except DoesNotExist:
             # No SET_BUY_AMOUNT issued.
             print(f"Invalid command. A SET_BUY_AMOUNT must be issued for stock {stock_symbol} before a trigger can be set.")
-            
-            # TODO
-            # log ErrorEventType.log
+
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, errorMessage="Invalid command, a SET_BUY_AMOUNT command needs to be issued before a trigger can be set")
             
             return
 
         # Check the user's account has enough money available.
         transaction_price = round(buy_trigger * users_auto_buy.amount, 2)
         if transaction_price > users_account.available:
-            # Insufficent funds.
-            print(f"Invalid buy trigger. Insufficent funds for an auto buy. Funds available (${users_account.available}), auto buy cost (${transaction_price}).")
-            
-            # TODO
-            # log ErrorEventType.log
+            # Insufficient funds.
+            print(f"Invalid buy trigger. Insufficient funds for an auto buy. Funds available (${users_account.available}), auto buy cost (${transaction_price}).")
+
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, errorMessage="Invalid buy trigger, insufficient funds in account.")
             
             return
 
@@ -522,8 +517,7 @@ class CMDHandler:
             # User hasn't set up and auto buy.
             print(f"Invalid command. No auto buy setup for stock {stock_symbol}.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol, errorMessage="Invalid command, no auto buy setup for this stock")
 
             return
 
@@ -558,16 +552,14 @@ class CMDHandler:
             # The user does not own any of the stock they want to sell.
             print(f"Invalid command. The stock {stock_symbol} is not owned.")
 
-            # TODO
-            # log ErrorEventType.log
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage="Invalid command, this stock is not currently owned")
 
             return
 
         if users_stock.available < sell_amount:
             print(f"Invalid command. Number of available stocks for {stock_symbol} is ({users_stock.available}) and is less than the amount set to sell {sell_amount}.")
-            
-            # TODO
-            # log ErrorEventType.log
+
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage="Invalid command, number of available stocks is less than the selling amount")
             
             return
 
@@ -596,9 +588,8 @@ class CMDHandler:
         pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)
         if pending_auto_sell is None:
             print("Invalid command. Issue a SET_SELL_AMOUNT for this stock before setting the trigger price.")
-            
-            # TODO
-            # log ErrorEventType.log
+
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, errorMessage="Invalid command, a SET_SELL_AMOUNT command needs to be issued before setting this trigger")
             
             return
 
@@ -640,7 +631,6 @@ class CMDHandler:
 
         UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol)
 
-
         bad_cmd = True
         reserved_amount = 0
         users_account = Accounts.objects.get(user_id=user_id)
@@ -669,7 +659,7 @@ class CMDHandler:
             # No SET_SELL commands have been issued.
             print(f"Invalid command. No auto sell has been setup for stock {stock_symbol}.")
 
-#             ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol, errorMessage="Invalid command, no auto sell has been set up")
+            ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol, errorMessage="Invalid command, no auto sell has been set up")
 
             return
 
@@ -701,10 +691,9 @@ class CMDHandler:
         print("DISPLAY_SUMMARY: ", params)
         UserCommandType().log((round(time.time()*1000)), "Worker", transactionNum, "DISPLAY_SUMMARY")
 
-    def unknown_cmd(self, params):
+    def unknown_cmd(self, transactionNum, params):
 
-        # TODO
-        # log ErrorEventType.log
+        ErrorEventType().log((round(time.time()*1000)), "Worker", transactionNum, "UNKNOWN_COMMAND", errorMessage="This is an unkown command!")
 
         print("UNKNOWN COMMAND!")
 
