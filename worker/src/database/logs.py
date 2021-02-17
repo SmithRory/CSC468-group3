@@ -133,6 +133,5 @@ class LogType(mongoengine.Document):
     errorEvent = mongoengine.EmbeddedDocumentListField(ErrorEventType)
     debugEvent = mongoengine.EmbeddedDocumentListField(DebugType)
 
-
 def get_logs():
     return LogType.objects.first().to_json()
