@@ -7,16 +7,25 @@ mongoengine.connect(host = MONGO_URI)
 
 # assuming timestamp is in unix time, add later to check for it
 
-# class DebugType(Document):
-#     timestamp = IntField(required=True)
-#     server = StringField(required=True)
-#     transactionNum = IntField(required=True, min_value=0)
-#     command = StringField(required=True)
-#     username = StringField()
-#     stockSymbol = StringField(max_length=3)
-#     filename = StringField()
-#     funds = DecimalField(precision=2)
-#     debugMessage = StringField()
+class DebugType(mongoengine.EmbeddedDocument):
+    timestamp = mongoengine.IntField(required=True)
+    server = mongoengine.StringField(required=True)
+    transactionNum = mongoengine.IntField(required=True, min_value=0)
+    command = mongoengine.StringField(required=True)
+    username = mongoengine.StringField()
+    stockSymbol = mongoengine.StringField(max_length=3)
+    filename = mongoengine.StringField()
+    funds = mongoengine.DecimalField(precision=2)
+    debugMessage = mongoengine.StringField()
+
+    def log(self, timestamp, server, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None, debugMessage=None):
+                            # Get all the logs.
+                            logs = LogType.objects.first()
+                            # Create the new log.
+                            debug_log = DebugType(timestamp=timestamp, server=server, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds, debugMessage=debugMessage)
+                            # Append the new command log.
+                            logs.debugEvent.append(debug_log)
+                            logs.save()
 
 class ErrorEventType(mongoengine.EmbeddedDocument):
     timestamp = mongoengine.IntField(required=True)
@@ -119,11 +128,8 @@ class LogType(mongoengine.Document):
     accountTransaction = mongoengine.EmbeddedDocumentListField(AccountTransactionType)
     systemEvent = mongoengine.EmbeddedDocumentListField(SystemEventType)
     errorEvent = mongoengine.EmbeddedDocumentListField(ErrorEventType)
-#     debugEvent = EmbeddedDocumentListField(DebugType)
+    debugEvent = mongoengine.EmbeddedDocumentListField(DebugType)
 
 
 def get_logs():
-
-#     print(LogType.objects.first().to_json())
-
     return LogType.objects.first().to_json()
