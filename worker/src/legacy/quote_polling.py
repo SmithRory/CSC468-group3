@@ -5,9 +5,12 @@ from legacy import quote
 from mongoengine import DoesNotExist
 import decimal
 
-# This class exists so the system can keep track of which stocks to poll, and which users have auto
-# transactions for each of those stocks. This info will eventually be in a cache.
 class UserPollingStocks:
+    '''
+    This class exists so the system can keep track of which stocks to poll, and which users have auto
+    transactions for each of those stocks. This info will eventually be in a cache.
+    '''
+
     def __init__(self):
         self._lock = threading.Lock()
         self.user_polling_stocks = {} # { 'stock_symbol' : { 'auto_buy': ['user1', 'user2'], 'auto_sell': ['user1', 'user2'] } }
@@ -43,8 +46,10 @@ class UserPollingStocks:
             if user_id not in auto_transactions['auto_sell']:
                 auto_transactions['auto_sell'].append(user_id)
 
-# maybe make this a single function
 class QuotePollingThread(threading.Thread):
+    '''
+    Polls the stocks prices and triggers any auto sell/buy transactions when necessary.
+    '''
 
     def __init__(self, quote_polling, polling_rate):
         threading.Thread.__init__(self)
@@ -76,7 +81,6 @@ class QuotePollingThread(threading.Thread):
             
             # Remove user from list of auto_buys
             self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
-            #self.user_polling_stocks[stock_symbol]['auto_buy'].remove(user_id)
 
         # Get all users that have an auto sell trigger equal to or greater than the quote value.
         auto_sell_users = Accounts.objects(__raw__={"auto_sell": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$gte": value}}}}).only('user_id')
@@ -87,7 +91,6 @@ class QuotePollingThread(threading.Thread):
             
             # Remove user from list of auto_sells
             self.quote_polling.remove_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
-            #self.user_polling_stocks[stock_symbol]['auto_sell'].remove(user_id)
 
     # Called whenever a user has an auto buy that gets triggered.
     def auto_buy_handler(self, user_id, stock_symbol, value):
@@ -137,7 +140,7 @@ class QuotePollingThread(threading.Thread):
         users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
         users_account.auto_sell.remove(users_auto_sell)
 
-        # Update the number of stocks.
+        # Decrease the number of owned stocks.
         users_stock = users_account.stocks.get(symbol=stock_symbol)
         users_stock.amount = users_stock.amount - users_auto_sell.amount 
         if users_stock.amount == 0:
