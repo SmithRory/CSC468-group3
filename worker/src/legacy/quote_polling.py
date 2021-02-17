@@ -1,6 +1,7 @@
 import threading
 import time
 from database.accounts import Accounts, Stocks
+from database.logs import DebugType
 from legacy import quote
 from mongoengine import DoesNotExist
 import decimal
