@@ -1,34 +1,55 @@
 # Interfaces with the 'logs' collection.
 import os
+import time
 import mongoengine
 
 MONGO_URI = 'mongodb://' + os.environ['MONGODB_USERNAME'] + ':' + os.environ['MONGODB_PASSWORD'] + '@' + os.environ['MONGODB_HOSTNAME'] + ':27017/' + os.environ['MONGODB_DATABASE']
 mongoengine.connect(host = MONGO_URI)
 
+SERVER = "Worker"
+
 # assuming timestamp is in unix time, add later to check for it
 
-# class DebugType(Document):
-#     timestamp = StringField(required=True)
-#     server = StringField(required=True)
-#     transactionNum = IntField(required=True, min_value=0)
-#     command = StringField(required=True)
-#     username = StringField()
-#     stockSymbol = StringField(max_length=3)
-#     filename = StringField()
-#     funds = DecimalField(precision=2)
-#     debugMessage = StringField()
-#
-# class ErrorEventType(Document):
-#     timestamp = StringField(required=True)
-#     server = StringField(required=True)
-#     transactionNum = IntField(required=True, min_value=0)
-#     command = StringField(required=True)
-#     username = StringField()
-#     stockSymbol = StringField(max_length=3)
-#     filename = StringField()
-#     funds = DecimalField(precision=2)
-#     errorMessage = StringField()
-#
+class DebugType(mongoengine.EmbeddedDocument):
+    timestamp = mongoengine.IntField(required=True)
+    server = mongoengine.StringField(required=True)
+    transactionNum = mongoengine.IntField(required=True, min_value=0)
+    command = mongoengine.StringField(required=True)
+    username = mongoengine.StringField()
+    stockSymbol = mongoengine.StringField(max_length=3)
+    filename = mongoengine.StringField()
+    funds = mongoengine.DecimalField(precision=2)
+    debugMessage = mongoengine.StringField()
+
+    def log(self, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None, debugMessage=None):
+        # Get all the logs.
+        logs = LogType.objects.first()
+        # Create the new log.
+        debug_log = DebugType(timestamp=round(time.time()*1000), server=SERVER, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds, debugMessage=debugMessage)
+        # Append the new command log.
+        logs.debugEvent.append(debug_log)
+        logs.save()
+
+class ErrorEventType(mongoengine.EmbeddedDocument):
+    timestamp = mongoengine.IntField(required=True)
+    server = mongoengine.StringField(required=True)
+    transactionNum = mongoengine.IntField(required=True, min_value=0)
+    command = mongoengine.StringField(required=True)
+    username = mongoengine.StringField()
+    stockSymbol = mongoengine.StringField(max_length=3)
+    filename = mongoengine.StringField()
+    funds = mongoengine.DecimalField(precision=2)
+    errorMessage = mongoengine.StringField()
+
+    def log(self, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None, errorMessage=None):
+        # Get all the logs.
+        logs = LogType.objects.first()
+        # Create the new log.
+        err_log = ErrorEventType(timestamp=round(time.time()*1000), server=SERVER, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds, errorMessage=errorMessage)
+        # Append the new command log.
+        logs.errorEvent.append(err_log)
+        logs.save()
+
 class SystemEventType(mongoengine.EmbeddedDocument):
     timestamp = mongoengine.IntField(required=True)
     server = mongoengine.StringField(required=True)
@@ -39,14 +60,14 @@ class SystemEventType(mongoengine.EmbeddedDocument):
     filename = mongoengine.StringField()
     funds = mongoengine.DecimalField(precision=2)
 
-    def log(self, timestamp, server, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None):
-                    # Get all the logs.
-                    logs = LogType.objects.first()
-                    # Create the new log.
-                    sys_evnt_log = SystemEventType(timestamp=timestamp, server=server, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
-                    # Append the new command log.
-                    logs.systemEvent.append(sys_evnt_log)
-                    logs.save()
+    def log(self, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None):
+        # Get all the logs.
+        logs = LogType.objects.first()
+        # Create the new log.
+        sys_evnt_log = SystemEventType(timestamp=round(time.time()*1000), server=SERVER, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
+        # Append the new command log.
+        logs.systemEvent.append(sys_evnt_log)
+        logs.save()
 
 class AccountTransactionType(mongoengine.EmbeddedDocument):
     timestamp = mongoengine.IntField(required=True)
@@ -56,14 +77,14 @@ class AccountTransactionType(mongoengine.EmbeddedDocument):
     username = mongoengine.StringField(required=True)
     funds = mongoengine.DecimalField(required=True, precision=2)
 
-    def log(self, timestamp, server, transactionNum, action, username, funds):
-                # Get all the logs.
-                logs = LogType.objects.first()
-                # Create the new log.
-                transaction_log = AccountTransactionType(timestamp=timestamp, server=server, transactionNum=transactionNum, action=action, username=username, funds=funds)
-                # Append the new quote log.
-                logs.accountTransaction.append(transaction_log)
-                logs.save()
+    def log(self, transactionNum, action, username, funds):
+        # Get all the logs.
+        logs = LogType.objects.first()
+        # Create the new log.
+        transaction_log = AccountTransactionType(timestamp=round(time.time()*1000), server=SERVER, transactionNum=transactionNum, action=action, username=username, funds=funds)
+        # Append the new quote log.
+        logs.accountTransaction.append(transaction_log)
+        logs.save()
 
 class QuoteServerType(mongoengine.EmbeddedDocument):
     timestamp = mongoengine.IntField(required=True) #change to datetime if required
@@ -75,11 +96,11 @@ class QuoteServerType(mongoengine.EmbeddedDocument):
     quoteServerTime = mongoengine.IntField(required=True)
     cryptokey = mongoengine.StringField(required=True)
 
-    def log(self, timestamp, server, transactionNum, price, stockSymbol, username, quoteServerTime, cryptokey):
+    def log(self, transactionNum, price, stockSymbol, username, quoteServerTime, cryptokey):
         # Get all the logs.
         logs = LogType.objects.first()
         # Create the new log.
-        quote_log = QuoteServerType(timestamp=timestamp, server=server, transactionNum=transactionNum, price=price, stockSymbol=stockSymbol, username=username, quoteServerTime=quoteServerTime, cryptokey=cryptokey)
+        quote_log = QuoteServerType(timestamp=round(time.time()*1000), server=SERVER, transactionNum=transactionNum, price=price, stockSymbol=stockSymbol, username=username, quoteServerTime=quoteServerTime, cryptokey=cryptokey)
         # Append the new quote log.
         logs.quoteServer.append(quote_log)
         logs.save()
@@ -94,14 +115,14 @@ class UserCommandType(mongoengine.EmbeddedDocument):
     filename = mongoengine.StringField()
     funds = mongoengine.DecimalField(precision=2)
 
-    def log(self, timestamp, server, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None):
-                # Get all the logs.
-                logs = LogType.objects.first()
-                # Create the new log.
-                command_log = UserCommandType(timestamp=timestamp, server=server, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
-                # Append the new command log.
-                logs.userCommand.append(command_log)
-                logs.save()
+    def log(self, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None):
+        # Get all the logs.
+        logs = LogType.objects.first()
+        # Create the new log.
+        command_log = UserCommandType(timestamp=round(time.time()*1000), server=SERVER, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds)
+        # Append the new command log.
+        logs.userCommand.append(command_log)
+        logs.save()
 
 class LogType(mongoengine.Document):
 
@@ -109,12 +130,9 @@ class LogType(mongoengine.Document):
     quoteServer = mongoengine.EmbeddedDocumentListField(QuoteServerType)
     accountTransaction = mongoengine.EmbeddedDocumentListField(AccountTransactionType)
     systemEvent = mongoengine.EmbeddedDocumentListField(SystemEventType)
-#     errorEvent = EmbeddedDocumentListField(ErrorEventType)
-#     debugEvent = EmbeddedDocumentListField(DebugType)
+    errorEvent = mongoengine.EmbeddedDocumentListField(ErrorEventType)
+    debugEvent = mongoengine.EmbeddedDocumentListField(DebugType)
 
 
 def get_logs():
-
-#     print(LogType.objects.first().to_json())
-
     return LogType.objects.first().to_json()
