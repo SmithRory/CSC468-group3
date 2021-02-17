@@ -5,6 +5,27 @@ Milestone | Date | Deliverables
 --------- | ---- | ------------
 Initial Report & Documentation | Jan. 31st, 2021 | [Document](https://github.com/RorySmith2475/CSC468-group3/blob/main/documentation/milestones/Group3%20-%20Pygang%20-%20Initial%20Report%20and%20Documentation.pdf)<br>[Presentation](https://github.com/RorySmith2475/CSC468-group3/blob/main/documentation/milestones/Group3%20-%20Pygang%20-%20Initial%20Report%20Presentation%20Slides.pdf)
 
+## Uvic VM setup
+The following steps are needed to get the software running in the VM provided by Uvic. These steps need to be followed for every new machine accessed.
+1. Clone repository: `sudo git clone https://github.com/RorySmith2475/CSC468-group3.git`
+2. cd into repo folder
+3. Install curl: `sudo apt install curl`
+4. Install docker-compose:
+    1. `sudo curl -L "https://github.com/docker/compose/releases/download/1.28.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose`
+    2. `sudo chmod +x /usr/local/bin/docker-compose`
+    3. `sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose`
+5. Install pip3: `sudo apt install python3-pip`
+6. Install pika: `sudo pip3 install pika`
+7. Run the server: `sudo docker-compose up --build`
+
+### Running Workloads
+Once the VM has been setup, workloads can be run.
+
+1. Open a seperate terminal tab in the same directory as the `docker-compose up` command was run in.
+2. Run `python3 frontend_proxy.py --route backend_queue --exchange backend` to send commands to the system.
+    *  To run a workload file append `-f <path to workload>` to the above command.
+3. To re-run a workload, remember to first delete the mongo-data docker volume to clean the database (sel below for details).
+
 ## MongoDB
 
 - Running as a local instance in a container
@@ -54,16 +75,3 @@ The following is how a user account is stored within MongoDB.
     - the volume cannot be removed if there is something using it
 - `docker volume rm csc468-group3_mongo-data` to finally delete the volume
 - now when `docker-compose up -d` the user (pygang_worker) and database (pygangdb) defined in `init-mongo.js` will be created from new
-
-## Uvic VM setup
-The following steps are needed to get the software running in the VM provided by Uvic. These steps need to be followed for every new machine accessed.
-1. Clone repository: `sudo git clone https://github.com/RorySmith2475/CSC468-group3.git`
-2. cd into repo folder
-3. Install curl: `sudo apt install curl`
-4. Install docker-compose:
-    1. `sudo curl -L "https://github.com/docker/compose/releases/download/1.28.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose`
-    2. `sudo chmod +x /usr/local/bin/docker-compose`
-    3. `sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose`
-5. Install pip3: `sudo apt install python3-pip`
-6. Install pika: `sudo pip3 install pika`
-7. Run the server: `sudo docker-compose up --build`

@@ -80,7 +80,7 @@ class CMDHandler:
 
         UserCommandType().log(transactionNum=transactionNum, command="QUOTE", username=user_id, stockSymbol=stock_symbol)
 
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="QUOTE", errorMessage=f"User {user_id} does not exist.")
             return
@@ -101,7 +101,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="BUY", errorMessage=f"User {user_id} does not exist.")
             return
@@ -186,7 +186,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="COMMIT_BUY", username=user_id)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="COMMIT_BUY", errorMessage=f"User {user_id} does not exist.")
             return
@@ -239,7 +239,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_BUY", username=user_id)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_BUY", errorMessage=f"User {user_id} does not exist.")
             return
@@ -277,7 +277,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="SELL", errorMessage=f"User {user_id} does not exist.")
             return
@@ -362,7 +362,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="COMMIT_SELL", username=user_id)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="COMMIT_SELL", errorMessage=f"User {user_id} does not exist.")
             return
@@ -421,7 +421,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SELL", username=user_id)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SELL", errorMessage=f"User {user_id} does not exist.")
             return
@@ -460,7 +460,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=buy_amount)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", errorMessage=f"User {user_id} does not exist.")
             return
@@ -497,7 +497,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", errorMessage=f"User {user_id} does not exist.")
             return
@@ -547,7 +547,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SET_BUY", errorMessage=f"User {user_id} does not exist.")
             return
@@ -586,7 +586,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", errorMessage=f"User {user_id} does not exist.")
             return
@@ -630,7 +630,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", errorMessage=f"User {user_id} does not exist.")
             return
@@ -681,7 +681,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
-        if not Accounts.user_exists(user_id):
+        if not Accounts().user_exists(user_id=user_id):
             # Invalid command.
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SET_SELL", errorMessage=f"User {user_id} does not exist.")
             return
