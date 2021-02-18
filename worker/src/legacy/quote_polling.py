@@ -39,13 +39,26 @@ class UserPollingStocks:
         user = self.user_polling_stocks[stock_symbol]['lastUser']
         return list((transNum, command, user))
 
+    def remove_if_empty(self, stock_symbol):
+        '''
+        MUST have lock before calling this function.
+        This should only ever be called from within this class.
+        '''
+        len_buy = len(self.user_polling_stocks[stock_symbol]['auto_buy'])
+        len_sell = len(self.user_polling_stocks[stock_symbol]['auto_sell'])
+
+        if len_buy == 0 and len_sell == 0:
+            del self.user_polling_stocks[stock_symbol]
+
     def remove_user_autobuy(self, user_id, stock_symbol):
         with self._lock:
             try:
                 self.user_polling_stocks[stock_symbol]['auto_buy'].remove(user_id)
             except KeyError:
                 # User wasn't in list. Nothing to be done.
-                pass
+                return
+            
+            self.remove_if_empty(stock_symbol)
 
     def add_user_autobuy(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
@@ -62,7 +75,9 @@ class UserPollingStocks:
                 self.user_polling_stocks[stock_symbol]['auto_sell'].remove(user_id)
             except KeyError:
                 # User wasn't in list. Nothing to be done.
-                pass
+                return
+
+            self.remove_if_empty(stock_symbol)
 
     def add_user_autosell(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
@@ -141,7 +156,7 @@ class QuotePollingThread(threading.Thread):
         # Deduct the transaction cost from the account.
         reserved_amount = users_auto_buy.amount * users_auto_buy.trigger
         transaction_cost = users_auto_buy.amount * value
-        user_account.available = user_account.available + decimal.Decimal(reserved_amount - transaction_cost)
+        user_account.available = user_account.available + decimal.Decimal(reserved_amount) - decimal.Decimal(transaction_cost)
         user_account.amount = user_account.amount - decimal.Decimal(transaction_cost)
         
         # Update the number of stocks owned.
