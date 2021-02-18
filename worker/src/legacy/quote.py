@@ -22,9 +22,6 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
         except:
             # This should throw an error but is left this way so it can be
             # tested outside the VM
-
-            QuoteServerType().log(timestampForLog, "Quote", transactionNum, 12334.3, stock_name, uid, timestampForLog, "tempkey")
-
             print("Unable to connect to legacy quote server")
             return 12345.6
 

@@ -23,9 +23,14 @@ class Accounts(me.Document):
     auto_buy = me.EmbeddedDocumentListField(AutoTransaction, default=[])
     auto_sell = me.EmbeddedDocumentListField(AutoTransaction, default=[])
 
-    def user_exists(self, user_id):
-        pass
-
+    def user_exists(self, user_id) -> bool:
+        '''Checks if the user is in the database.'''
+        try:
+            user = Accounts.objects.get(user_id=user_id)
+        except me.DoesNotExist:
+            return False
+        else:
+            return True
 
 # Test function.
 def get_users():
