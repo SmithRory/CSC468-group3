@@ -29,29 +29,30 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
 
         try:
             s.send(command.encode('utf-8'))
+            data = s.recv(1024)
+            response = parser.quote_result_parse(data.decode('utf-8'))
+
+            timestampForLog = time.time()
+
+            quote_cache.cache.update({
+                stock_name: quote_cache.Quote
+                (
+                    stock_name=stock_name,
+                    value=response[0],
+                    timestamp=timestampForLog
+                )
+            })
+
+            # update after trying on quote server, update quote server time too
+            QuoteServerType().log(timestamp=round(timestampForLog*1000), transactionNum=transactionNum, price=response[0], stockSymbol=stock_name, username=uid, quoteServerTime=response[3], cryptokey=response[4])
+
+            return response[0] # Only returns the stock price
+
         except socket.error:
             print(f"Not connected to quote server...")
             quote_server_connect()
-            s.send(command.encode('utf-8'))
+            return get_quote(uid, stock_name, transactionNum, userCommand)
 
-        data = s.recv(1024)
-        response = parser.quote_result_parse(data.decode('utf-8'))
-
-        timestampForLog = time.time()
-
-        quote_cache.cache.update({
-            stock_name: quote_cache.Quote
-            (
-                stock_name=stock_name,
-                value=response[0],
-                timestamp=timestampForLog
-            )
-        })
-
-        # update after trying on quote server, update quote server time too
-        QuoteServerType().log(timestamp=round(timestampForLog*1000), transactionNum=transactionNum, price=response[0], stockSymbol=stock_name, username=uid, quoteServerTime=response[3], cryptokey=response[4])
-
-        return response[0] # Only returns the stock price
 
 
     # add user funds after confirming
