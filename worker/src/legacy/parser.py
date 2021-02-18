@@ -27,8 +27,6 @@ Server Quote Return Format: “Quote, Stock Symbol, USER NAME, CryptoKey”
 def quote_result_parse(result: str):
     tokens = result.split(',')
     if not is_float(tokens[0]):
-        print("Error: quote result not int")
-        print(tokens)
         tokens[0] = None
     else:
         tokens[0] = float(tokens[0])

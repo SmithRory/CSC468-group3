@@ -38,7 +38,6 @@ def main():
     # transactionNum needs to change, should ideally be in the load balancer that handles distributing the commands
 
 #     log = LogType().save() #should be in manager, starting off the log document/object
-    i = 0
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
         if not message_queue.empty():
@@ -49,10 +48,6 @@ def main():
             command_handler.handle_command(transactionNum, result[0], result[1])
             transactionNum = transactionNum + 1
             
-#             if i%100 == 0:
-#                 print(f"Finished {i} commands")
-#                 sys.stdout.flush()
-
     t_consumer.join()
 
 if __name__ == "__main__":

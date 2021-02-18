@@ -7,18 +7,15 @@ from . import quote_cache
 from database.logs import QuoteServerType, SystemEventType
 
 QUOTE_ADDRESS = "192.168.4.2"
-PORT = 4445 #int(os.environ['QUOTE_SERVER_PORT'])
+PORT = int(os.environ['QUOTE_SERVER_PORT'])
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-def quote_server_connect() -> bool:
+def quote_server_connect():
     global s
 
-    s.settimeout(4)
+    s.settimeout(2)
     s.connect((QUOTE_ADDRESS, PORT))
     s.settimeout(None)
-    return True
-    print("Unable to connect to legacy quote server")
-    return False
 
 def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : str) -> float:
     global s
@@ -32,10 +29,11 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
         try:
             s.send(command.encode('utf-8'))
             data = s.recv(1024)
-            response = parser.quote_result_parse(data.decode('utf-8'))
-            if len(response) < 2 :
+            if len(data) < 2 :
                 quote_server_connect()
                 return get_quote(uid, stock_name, transactionNum, userCommand)
+
+            response = parser.quote_result_parse(data.decode('utf-8'))
 
             timestampForLog = time.time()
 
@@ -55,7 +53,12 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
 
         except socket.error:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            quote_server_connect()
+            try:
+                quote_server_connect()
+            except socket.timeout:
+                print("Socket connection timeout")
+                time.sleep(0.1) # Just to reduce spam error messages
+
             return get_quote(uid, stock_name, transactionNum, userCommand)
 
 
