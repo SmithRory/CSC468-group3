@@ -8,50 +8,65 @@ from database.logs import QuoteServerType, SystemEventType
 
 QUOTE_ADDRESS = "192.168.4.2"
 PORT = int(os.environ['QUOTE_SERVER_PORT'])
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+def quote_server_connect() -> bool:
+    global s
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.settimeout(4)
+        s.connect((QUOTE_ADDRESS, PORT))
+        s.settimeout(None)
+        return True
+    except:
+        print("Unable to connect to legacy quote server")
+        return False
 
 def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : str) -> float:
+    global s
+
     result = quote_cache.cache.get(stock_name, None)
     timestampForLog = round(time.time()*1000)
     
     if result is None or time.time() - result.timestamp >= quote_cache.UPDATE_FREQ:
+        command = f'{stock_name}, {uid}\n'
+
         try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(4)
-            s.connect((QUOTE_ADDRESS, PORT))
-            s.settimeout(None)
-        except:
-            # This should throw an error but is left this way so it can be
-            # tested outside the VM
+            s.send(command.encode('utf-8'))
+            data = s.recv(1024)
+            response = parser.quote_result_parse(data.decode('utf-8'))
+            if len(response) < 2 :
+                print(f"Not connected to quote server...")
+                quote_server_connect()
+                return get_quote(uid, stock_name, transactionNum, userCommand)
 
-            QuoteServerType().log(timestampForLog, "Quote", transactionNum, 12334.3, stock_name, uid, timestampForLog, "tempkey")
+            timestampForLog = time.time()
 
-            print("Unable to connect to legacy quote server")
-            return 12345.6
+            quote_cache.cache.update({
+                stock_name: quote_cache.Quote
+                (
+                    stock_name=stock_name,
+                    value=response[0],
+                    timestamp=timestampForLog
+                )
+            })
 
-        command = f'{stock_name},{uid}\n'
-        s.send(command.encode('utf-8'))
-        data = s.recv(1024)
-        response = parser.quote_result_parse(data.decode('utf-8'))
+            # update after trying on quote server, update quote server time too
+            QuoteServerType().log(timestamp=round(timestampForLog*1000), transactionNum=transactionNum, price=response[0], stockSymbol=stock_name, username=uid, quoteServerTime=response[3], cryptokey=response[4])
 
-        timestampForLog = time.time()
+            return response[0] # Only returns the stock price
 
-        quote_cache.cache.update({
-            stock_name: quote_cache.Quote
-            (
-                stock_name=stock_name,
-                value=response[0],
-                timestamp=timestampForLog
-            )
-        })
+        except socket.error:
+            print(f"Not connected to quote server...")
+            quote_server_connect()
+            return get_quote(uid, stock_name, transactionNum, userCommand)
 
-        # update after trying on quote server, update quote server time too
-        QuoteServerType().log(round(timestampForLog*1000), "Quote", transactionNum, response[0], stock_name, uid, response[3], response[4])
 
-        return response[0] # Only returns the stock price
 
     # add user funds after confirming
     # System Event log since received from cache
 
-    SystemEventType().log(timestampForLog, "Cache-Quote", transactionNum, userCommand, username=uid, stockSymbol=stock_name)
+    SystemEventType().log(timestamp=timestampForLog, transactionNum=transactionNum, command=userCommand, username=uid, stockSymbol=stock_name)
 
     return result.value
