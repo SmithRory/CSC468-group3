@@ -43,9 +43,16 @@ def main():
     while not EXIT_PROGRAM:
         if not message_queue.empty():
             result = command_parse(message_queue.get())
-
+            
+            start_time = time.time()
             command_handler.handle_command(transactionNum, result[0], result[1])
             transactionNum = transactionNum + 1
+
+            if time.time() - start_time >= 1:
+                print("#")
+                print("#")
+                print("#")
+                print(f"{time.time()-start_time} {result}")
 
         sys.stdout.flush()
 
