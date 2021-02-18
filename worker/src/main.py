@@ -47,7 +47,7 @@ def main():
             command_handler.handle_command(transactionNum, result[0], result[1])
             transactionNum = transactionNum + 1
 
-        sys.stdout.flush()
+#         sys.stdout.flush()
 
     t_consumer.join()
 
