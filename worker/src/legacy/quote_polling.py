@@ -109,8 +109,9 @@ class QuotePollingThread(threading.Thread):
         print("AUTO BUY USERS to json: ", auto_buy_users.to_json())
 
         # Perform auto buy for all the users.
-        for user_id in auto_buy_users:
-            print("USER ID in json: ", user_id.to_json())
+        for user in auto_buy_users:
+            print("USER ID in json: ", user.to_json())
+            user_id = user.user_id
             self.auto_buy_handler(user_id=user_id, stock_symbol=stock_symbol, value=value)
             
             # Remove user from list of auto_buys
