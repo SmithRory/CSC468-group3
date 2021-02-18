@@ -105,9 +105,13 @@ class QuotePollingThread(threading.Thread):
         # Get all users that have an auto buy trigger equal to or less than the quote value.
         auto_buy_users = Accounts.objects(__raw__={"auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
 
+        print("AUTO BUY USERS: ", auto_buy_users)
+        print("AUTO BUY USERS to json: ", auto_buy_users.to_json())
+
         # Perform auto buy for all the users.
         for user_id in auto_buy_users:
-            self.auto_buy_handler(user_id, stock_symbol, value)
+            print("USER ID in json: ", user_id.to_json())
+            self.auto_buy_handler(user_id=user_id, stock_symbol=stock_symbol, value=value)
             
             # Remove user from list of auto_buys
             self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
@@ -117,7 +121,7 @@ class QuotePollingThread(threading.Thread):
         
         # Perform auto sell for all the users.
         for user_id in auto_sell_users:
-            self.auto_sell_handler(user_id, stock_symbol, value)
+            self.auto_sell_handler(user_id=user_id, stock_symbol=stock_symbol, value=value)
             
             # Remove user from list of auto_sells
             self.quote_polling.remove_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
