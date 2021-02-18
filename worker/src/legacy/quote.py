@@ -28,7 +28,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
             print("Unable to connect to legacy quote server")
             return 12345.6
 
-        command = f'QUOTE,{uid},{stock_name}\n'
+        command = f'{stock_name},{uid}\n'
         s.send(command.encode('utf-8'))
         data = s.recv(1024)
         response = parser.quote_result_parse(data.decode('utf-8'))
