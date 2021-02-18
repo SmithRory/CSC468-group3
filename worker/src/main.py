@@ -48,13 +48,7 @@ def main():
             command_handler.handle_command(transactionNum, result[0], result[1])
             transactionNum = transactionNum + 1
 
-            if time.time() - start_time >= 1:
-                print("#")
-                print("#")
-                print("#")
-                print(f"{time.time()-start_time} {result}")
-
-        sys.stdout.flush()
+#         sys.stdout.flush()
 
     t_consumer.join()
 
