@@ -53,7 +53,7 @@ class UserPollingStocks:
             if user_id not in auto_transactions['auto_buy']:
                 auto_transactions['auto_buy'].append(user_id)
                 auto_transactions['lastTransNum'] = transactionNum
-                auto_transactoins['lastCommand'] = command
+                auto_transactions['lastCommand'] = command
                 auto_transactions['lastUser'] = user_id
 
     def remove_user_autosell(self, user_id, stock_symbol):
@@ -70,7 +70,7 @@ class UserPollingStocks:
             if user_id not in auto_transactions['auto_sell']:
                 auto_transactions['auto_sell'].append(user_id)
                 auto_transactions['lastTransNum'] = transactionNum
-                auto_transactoins['lastCommand'] = command
+                auto_transactions['lastCommand'] = command
                 auto_transactions['lastUser'] = user_id
 
 class QuotePollingThread(threading.Thread):
