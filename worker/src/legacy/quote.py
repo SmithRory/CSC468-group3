@@ -11,7 +11,10 @@ PORT = int(os.environ['QUOTE_SERVER_PORT'])
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 def quote_server_connect() -> bool:
+    global s
+    print(type(s))
     try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(4)
         s.connect((QUOTE_ADDRESS, PORT))
         s.settimeout(None)
@@ -21,6 +24,8 @@ def quote_server_connect() -> bool:
         return False
 
 def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : str) -> float:
+    global s
+
     result = quote_cache.cache.get(stock_name, None)
     timestampForLog = round(time.time()*1000)
     
@@ -28,9 +33,13 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
         command = f'QUOTE,{uid},{stock_name}\n'
 
         try:
-            s.send(command.encode('utf-8'))
+            s.send(command.encode())
             data = s.recv(1024)
-            response = parser.quote_result_parse(data.decode('utf-8'))
+            response = parser.quote_result_parse(data.decode())
+            if len(response) < 2 :
+                print(f"Not connected to quote server...")
+                quote_server_connect()
+                return get_quote(uid, stock_name, transactionNum, userCommand)
 
             timestampForLog = time.time()
 
