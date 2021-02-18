@@ -8,7 +8,7 @@ from threading import Thread
 from rabbitmq.consumer import Consumer
 from legacy.parser import command_parse
 from cmd_handler import CMDHandler
-from database.logs import LogType
+# from database.logs import LogType
 
 # Handles exiting when SIGTERM (sent by ^C input) is received 
 # in a gracefull way. Main loop will only exit after a completed iteration
@@ -37,7 +37,7 @@ def main():
     transactionNum = 1 # to track the number of the transaction, for logging all logs of the same transaction must have the same number
     # transactionNum needs to change, should ideally be in the load balancer that handles distributing the commands
 
-    log = LogType().save() #should be in manager, starting off the log document/object
+#     log = LogType().save() #should be in manager, starting off the log document/object
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
