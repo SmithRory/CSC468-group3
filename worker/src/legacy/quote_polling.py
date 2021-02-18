@@ -55,7 +55,7 @@ class UserPollingStocks:
         with self._lock:
             try:
                 self.user_polling_stocks[stock_symbol]['auto_buy'].remove(user_id)
-            except KeyError:
+            except (KeyError, ValueError):
                 # User wasn't in list. Nothing to be done.
                 return
             
@@ -74,7 +74,7 @@ class UserPollingStocks:
         with self._lock:
             try:
                 self.user_polling_stocks[stock_symbol]['auto_sell'].remove(user_id)
-            except KeyError:
+            except (KeyError, ValueError):
                 # User wasn't in list. Nothing to be done.
                 return
 
@@ -116,27 +116,26 @@ class QuotePollingThread(threading.Thread):
         # Get the most up-to-date command information for logging purposes.
         info = self.quote_polling.get_last_info(stock_symbol)
 
+        # Get the current stock price.
         value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1])
 
         # Get all users that have an auto buy trigger equal to or less than the quote value.
         auto_buy_users = Accounts.objects(__raw__={"auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
 
-        print("AUTO BUY USERS: ", auto_buy_users.to_json())
+        # Get all users that have an auto sell trigger equal to or greater than the quote value.
+        auto_sell_users = Accounts.objects(__raw__={"auto_sell": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$gte": value}}}}).only('user_id')
 
         # Perform auto buy for all the users.
         for user in auto_buy_users:
-            print("USER ID in json: ", user.to_json())
             user_id = user.user_id
             self.auto_buy_handler(user_id=user_id, stock_symbol=stock_symbol, value=value)
             
             # Remove user from list of auto_buys
-            self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
-
-        # Get all users that have an auto sell trigger equal to or greater than the quote value.
-        auto_sell_users = Accounts.objects(__raw__={"auto_sell": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$gte": value}}}}).only('user_id')
+            self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)      
         
         # Perform auto sell for all the users.
-        for user_id in auto_sell_users:
+        for user in auto_sell_users:
+            user_id = user.user_id
             self.auto_sell_handler(user_id=user_id, stock_symbol=stock_symbol, value=value)
             
             # Remove user from list of auto_sells
@@ -177,7 +176,7 @@ class QuotePollingThread(threading.Thread):
         user_account.save()
 
         # Notify the user.
-        print(f"Successfully completed auto buy of {users_auto_buy.amount} shares of stock {stock_symbol}.")
+        print(f"Successfully completed auto buy of {users_auto_buy.amount} shares of stock {stock_symbol} for user {user_id}.")
 
     # Called whenever a user has an auto sell that gets triggered.
     def auto_sell_handler(self, user_id, stock_symbol, value):
@@ -205,4 +204,4 @@ class QuotePollingThread(threading.Thread):
         users_account.save()
 
         # Notify the user.
-        print(f"Successfully completed auto sell of {users_auto_sell.amount} shares of stock {stock_symbol}.")
+        print(f"Successfully completed auto sell of {users_auto_sell.amount} shares of stock {stock_symbol} for user {user_id}.")
