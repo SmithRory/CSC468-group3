@@ -543,7 +543,7 @@ class CMDHandler:
         print(f"Successfully set an auto buy for {users_auto_buy.amount} stocks of {stock_symbol} at ${buy_trigger} per stock.")
 
         # Add the user to the list of auto_buys for the stock
-        self.quote_polling.add_user_autobuy(user_id, stock_symbol)
+        self.quote_polling.add_user_autobuy(user_id=user_id, stock_symbol=stock_symbol, transactionNum=transactionNum, command="SET_BUY_TRIGGER")
 
     # params: user_id, stock_symbol
     def cancel_set_buy(self, transactionNum, params):
@@ -677,7 +677,7 @@ class CMDHandler:
         print(f"Successfully set an auto sell for {pending_auto_sell['sell_amount']} stocks of {stock_symbol} when the price is at least ${sell_trigger} per stock.")
 
         # Add user to the list of auto_sells for the stock
-        self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
+        self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol, transactionNum=transactionNum, command="SET_SELL_TRIGGER")
 
     # params: user_id, stock_symbol
     def cancel_set_sell(self, transactionNum, params):

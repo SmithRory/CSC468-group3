@@ -14,10 +14,30 @@ class UserPollingStocks:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self.user_polling_stocks = {} # { 'stock_symbol' : { 'auto_buy': ['user1', 'user2'], 'auto_sell': ['user1', 'user2'] } }
+        self.user_polling_stocks = {} 
+        ''' user_polling_stocks format
+        { 'stock_symbol' : { 
+            'auto_buy': ['user1', 'user2'], 
+            'auto_sell': ['user1', 'user2'], 
+            'lastTransNum': 4, 
+            'lastCommand': SET_BUY_TRIGGER, 
+            'lastUser': 'user1'} }
+        '''
 
     def get_stocks(self):
         return self.user_polling_stocks.keys()
+
+    def get_last_info(self, stock_symbol):
+        '''
+        Returns a list containing:
+            last transaction number [0],
+            last command [1],
+            last userid [2]
+        '''
+        transNum = self.user_polling_stocks[stock_symbol]['lastTransNum']
+        command = self.user_polling_stocks[stock_symbol]['lastCommand']
+        user = self.user_polling_stocks[stock_symbol]['lastUser']
+        return list((transNum, command, user))
 
     def remove_user_autobuy(self, user_id, stock_symbol):
         with self._lock:
@@ -27,11 +47,14 @@ class UserPollingStocks:
                 # User wasn't in list. Nothing to be done.
                 pass
 
-    def add_user_autobuy(self, user_id, stock_symbol):
+    def add_user_autobuy(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
             auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
             if user_id not in auto_transactions['auto_buy']:
                 auto_transactions['auto_buy'].append(user_id)
+                auto_transactions['lastTransNum'] = transactionNum
+                auto_transactoins['lastCommand'] = command
+                auto_transactions['lastUser'] = user_id
 
     def remove_user_autosell(self, user_id, stock_symbol):
         with self._lock:
@@ -41,11 +64,14 @@ class UserPollingStocks:
                 # User wasn't in list. Nothing to be done.
                 pass
 
-    def add_user_autosell(self, user_id, stock_symbol):
+    def add_user_autosell(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
             auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': [], 'auto_sell': []})
             if user_id not in auto_transactions['auto_sell']:
                 auto_transactions['auto_sell'].append(user_id)
+                auto_transactions['lastTransNum'] = transactionNum
+                auto_transactoins['lastCommand'] = command
+                auto_transactions['lastUser'] = user_id
 
 class QuotePollingThread(threading.Thread):
     '''
@@ -71,7 +97,10 @@ class QuotePollingThread(threading.Thread):
             time.sleep(self.polling_rate)
 
     def quote_update_handler(self, stock_symbol):
-        value = quote.get_quote('polling', stock_symbol)
+        # Get the most up-to-date command information for logging purposes.
+        info = self.quote_polling.get_last_info(stock_symbol)
+
+        value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1])
 
         # Get all users that have an auto buy trigger equal to or less than the quote value.
         auto_buy_users = Accounts.objects(__raw__={"auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
