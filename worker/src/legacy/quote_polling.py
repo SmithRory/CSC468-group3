@@ -133,10 +133,8 @@ class QuotePollingThread(threading.Thread):
         # Get the user document
         user_account = Accounts.objects.get(user_id=user_id)
 
-        print("USER ACCOUNT: ", user_account.to_json())
-
         # Remove the auto buy transaction from the users list of auto buys
-        users_auto_buy = user_account.auto_buy.get(stock_symbol=stock_symbol)
+        users_auto_buy = user_account.auto_buy.get(symbol=stock_symbol)
         user_account.auto_buy.remove(users_auto_buy)
 
         # Add the difference between the reserved amount and transaction cost to the amount available.
