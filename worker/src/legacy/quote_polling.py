@@ -157,7 +157,7 @@ class QuotePollingThread(threading.Thread):
         reserved_amount = users_auto_buy.amount * users_auto_buy.trigger
         transaction_cost = users_auto_buy.amount * value
         user_account.available = user_account.available + decimal.Decimal(reserved_amount) - decimal.Decimal(transaction_cost)
-        user_account.amount = user_account.amount - decimal.Decimal(transaction_cost)
+        user_account.account = user_account.account - decimal.Decimal(transaction_cost)
         
         # Update the number of stocks owned.
         users_stocks = None
@@ -196,7 +196,9 @@ class QuotePollingThread(threading.Thread):
             users_account.stocks.remove(users_stock) 
 
         # Adjust the funds in the account.
-        users_account.account = users_account.account + decimal.Decimal(value * users_auto_sell.amount)
+        sale_profit = decimal.Decimal(value) * decimal.Decimal(users_auto_sell.amount)
+        users_account.account = users_account.account + sale_profit
+        users_account.available = users_account.available + sale_profit
 
         # Save the user.
         users_account.save()
