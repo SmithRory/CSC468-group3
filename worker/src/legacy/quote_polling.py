@@ -25,7 +25,8 @@ class UserPollingStocks:
         '''
 
     def get_stocks(self):
-        return self.user_polling_stocks.keys()
+        ''' Returns a list of all keys. '''
+        return list(self.user_polling_stocks)
 
     def get_last_info(self, stock_symbol):
         '''
@@ -39,13 +40,26 @@ class UserPollingStocks:
         user = self.user_polling_stocks[stock_symbol]['lastUser']
         return list((transNum, command, user))
 
+    def remove_if_empty(self, stock_symbol):
+        '''
+        MUST have lock before calling this function.
+        This should only ever be called from within this class.
+        '''
+        len_buy = len(self.user_polling_stocks[stock_symbol]['auto_buy'])
+        len_sell = len(self.user_polling_stocks[stock_symbol]['auto_sell'])
+
+        if len_buy == 0 and len_sell == 0:
+            del self.user_polling_stocks[stock_symbol]
+
     def remove_user_autobuy(self, user_id, stock_symbol):
         with self._lock:
             try:
                 self.user_polling_stocks[stock_symbol]['auto_buy'].remove(user_id)
             except KeyError:
                 # User wasn't in list. Nothing to be done.
-                pass
+                return
+            
+            self.remove_if_empty(stock_symbol)
 
     def add_user_autobuy(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
@@ -62,7 +76,9 @@ class UserPollingStocks:
                 self.user_polling_stocks[stock_symbol]['auto_sell'].remove(user_id)
             except KeyError:
                 # User wasn't in list. Nothing to be done.
-                pass
+                return
+
+            self.remove_if_empty(stock_symbol)
 
     def add_user_autosell(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
@@ -105,9 +121,13 @@ class QuotePollingThread(threading.Thread):
         # Get all users that have an auto buy trigger equal to or less than the quote value.
         auto_buy_users = Accounts.objects(__raw__={"auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
 
+        print("AUTO BUY USERS: ", auto_buy_users.to_json())
+
         # Perform auto buy for all the users.
-        for user_id in auto_buy_users:
-            self.auto_buy_handler(user_id, stock_symbol, value)
+        for user in auto_buy_users:
+            print("USER ID in json: ", user.to_json())
+            user_id = user.user_id
+            self.auto_buy_handler(user_id=user_id, stock_symbol=stock_symbol, value=value)
             
             # Remove user from list of auto_buys
             self.quote_polling.remove_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
@@ -117,7 +137,7 @@ class QuotePollingThread(threading.Thread):
         
         # Perform auto sell for all the users.
         for user_id in auto_sell_users:
-            self.auto_sell_handler(user_id, stock_symbol, value)
+            self.auto_sell_handler(user_id=user_id, stock_symbol=stock_symbol, value=value)
             
             # Remove user from list of auto_sells
             self.quote_polling.remove_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
@@ -130,15 +150,15 @@ class QuotePollingThread(threading.Thread):
         user_account = Accounts.objects.get(user_id=user_id)
 
         # Remove the auto buy transaction from the users list of auto buys
-        users_auto_buy = user_account.auto_buy.get(stock_symbol=stock_symbol)
+        users_auto_buy = user_account.auto_buy.get(symbol=stock_symbol)
         user_account.auto_buy.remove(users_auto_buy)
 
         # Add the difference between the reserved amount and transaction cost to the amount available.
         # Deduct the transaction cost from the account.
         reserved_amount = users_auto_buy.amount * users_auto_buy.trigger
         transaction_cost = users_auto_buy.amount * value
-        user_account.available = user_account.available + decimal.Decimal(reserved_amount - transaction_cost)
-        user_account.amount = user_account.amount - decimal.Decimal(transaction_cost)
+        user_account.available = user_account.available + decimal.Decimal(reserved_amount) - decimal.Decimal(transaction_cost)
+        user_account.account = user_account.account - decimal.Decimal(transaction_cost)
         
         # Update the number of stocks owned.
         users_stocks = None
@@ -177,7 +197,9 @@ class QuotePollingThread(threading.Thread):
             users_account.stocks.remove(users_stock) 
 
         # Adjust the funds in the account.
-        users_account.account = users_account.account + decimal.Decimal(value * users_auto_sell.amount)
+        sale_profit = decimal.Decimal(value) * decimal.Decimal(users_auto_sell.amount)
+        users_account.account = users_account.account + sale_profit
+        users_account.available = users_account.available + sale_profit
 
         # Save the user.
         users_account.save()
