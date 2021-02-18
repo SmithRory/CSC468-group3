@@ -1,24 +1,26 @@
-FROM rust:latest
+FROM ubuntu:bionic
 
-WORKDIR /usr/src
+WORKDIR /usr/lib
 
-# Create blank app
-RUN USER=root cargo new manager
-WORKDIR /usr/src/manager
+#Install dependencies
+RUN apt-get update && apt-get install -y cmake openssl libssl-dev g++
 
-# We want dependencies cached, so copy those first.
-COPY Cargo.toml /usr/src/manager/
-COPY Cargo.lock /usr/src/manager/
+# RUN git clone https://github.com/alanxz/rabbitmq-c.git && cd rabbitmq-c
+# WORKDIR /usr/lib/rabbitmq-c
 
-# This is a dummy build to get the dependencies cached.
-RUN cargo build --release
+# RUN git checkout v0.10.0
+# RUN mkdir build
+# WORKDIR /usr/lib/rabbitmq-c/build
 
-# This is the actual build.
-COPY src/ /usr/src/manager/src
-RUN cargo build --release --verbose
-RUN mv /usr/src/manager/target/release/manager /bin
+# RUN cmake .. 
+# RUN cmake --build .
+# RUN ls
 
-WORKDIR /
+WORKDIR /usr/manager
+COPY . .
 
-# CMD ["/usr/src/manager/target/release/manager"]
-CMD ["/bin/manager"]
+RUN mkdir build
+WORKDIR /usr/manager/build
+RUN cmake ..
+RUN cmake --build .
+CMD ["/usr/manager/build/load_balancer"]
