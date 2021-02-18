@@ -543,7 +543,7 @@ class CMDHandler:
         print(f"Successfully set an auto buy for {users_auto_buy.amount} stocks of {stock_symbol} at ${buy_trigger} per stock.")
 
         # Add the user to the list of auto_buys for the stock
-        self.quote_polling.add_user_autobuy(user_id=user_id, stock_symbol=stock_symbol, transactionNum=transactionNum, command="SET_BUY_TRIGGER")
+        self.quote_polling.add_user_autobuy(user_id, stock_symbol)
 
     # params: user_id, stock_symbol
     def cancel_set_buy(self, transactionNum, params):
