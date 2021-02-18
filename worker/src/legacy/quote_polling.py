@@ -25,7 +25,8 @@ class UserPollingStocks:
         '''
 
     def get_stocks(self):
-        return self.user_polling_stocks.keys()
+        ''' Returns a list of all keys. '''
+        return list(self.user_polling_stocks)
 
     def get_last_info(self, stock_symbol):
         '''
