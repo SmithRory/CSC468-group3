@@ -157,6 +157,8 @@ class CMDHandler:
     # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
     def buy_timeout_handler(self, transactionNum, user_id):
 
+        DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, debugMessage="BUY command has timed out.")
+
         # Remove the timer
         timer = self.uncommitted_buy_timers.pop(user_id, None)
         if timer is not None:
@@ -165,9 +167,10 @@ class CMDHandler:
         
         # Remove the pending buy
         users_buy = self.uncommitted_buys.pop(user_id, None)
-
-        # Notify the user their BUY has expired.
-        print("The BUY command has expired and will be re-issued.")
+        if users_buy is None:
+            # Something weird has happened. A buy should not timeout when there is no uncommitted buy command.
+            ErrorEventType(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage=f"BUY command has timed out for user {user_id}, but no uncommitted buy was found.")
+            return
 
         # Free the reserved funds.
         users_account = Accounts.objects.get(user_id=user_id)
@@ -340,6 +343,10 @@ class CMDHandler:
 
         # Remove the pending sell.
         users_sell = self.uncommitted_sells.pop(user_id, None)
+        if users_sell is None:
+            # Something weird has happened. A buy should not timeout when there is no uncommitted buy command.
+            ErrorEventType(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage=f"SELL command has timed out for user {user_id}, but no uncommitted sell was found.")
+            return
 
         # Free the reserved stocks.
         users_account = Accounts.objects.get(user_id=user_id)
