@@ -56,6 +56,7 @@ def main():
         server_name = f"worker_{i}"
         result = client.containers.run(
             image="csc468-group3_worker",
+            name=server_name,
             detach=True,
             auto_remove=True,
             network="csc468-group3_custom_network",
@@ -72,7 +73,7 @@ def main():
             }
         )
         
-        print(f"Started worker container {result.id}")
+        print(f"Started worker container...\n\tID: {result.id}\n\tName: {result.name}")
         sys.stdout.flush()
 
         workers.append(Worker(

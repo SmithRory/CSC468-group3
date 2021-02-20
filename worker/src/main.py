@@ -29,15 +29,15 @@ def exit_gracefully(self, signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
-# def queue_thread(queue):
-#     rabbit_queue = Consumer(
-#         command_queue=queue,
-#         connection_param='rabbitmq-backend',
-#         exchange_name=os.environ["BACKEND_EXCHANGE"],
-#         queue_name=os.environ["ROUTE_KEY"],
-#         routing_key=os.environ["ROUTE_KEY"]
-#     )
-#     rabbit_queue.run()
+def queue_thread(queue):
+     rabbit_queue = Consumer(
+         command_queue=queue,
+         connection_param='rabbitmq-backend',
+         exchange_name=os.environ["BACKEND_EXCHANGE"],
+         queue_name=os.environ["ROUTE_KEY"],
+         routing_key=os.environ["ROUTE_KEY"]
+     )
+     rabbit_queue.run()
 
 def main():
     publisher = Publisher()
