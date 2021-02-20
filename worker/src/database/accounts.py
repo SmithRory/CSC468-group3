@@ -16,7 +16,7 @@ class AutoTransaction(me.EmbeddedDocument):
     trigger = me.DecimalField(default=0.00, precision=2)
 
 class Accounts(me.Document):
-    user_id = me.StringField(required=True, unique=True)
+    user_id = me.StringField(primary_key=True)
     account = me.DecimalField(default=0.00, precision=2)
     available = me.DecimalField(default=0.00, precision=2)
     stocks = me.EmbeddedDocumentListField(Stocks, default=[])
