@@ -4,7 +4,7 @@ import time
 try:
     os.environ["ROUTE_KEY"]
 except:
-    print("In initial worker container. Waiting to be killed")
+    print("In initial worker container. Waiting to be killed.")
     sys.stdout.flush()
     time.sleep(5)
     sys.exit()
