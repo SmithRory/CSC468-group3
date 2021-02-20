@@ -1,14 +1,23 @@
-import signal
-import sys
 import os
+import sys
+import time
+try:
+    os.environ["ROUTE_KEY"]
+except:
+    print("In initial worker container. Waiting to be killed")
+    sys.stdout.flush()
+    time.sleep(5)
+    sys.exit()
+
+import signal
 import pika
 import queue
-import time
 from threading import Thread
 from rabbitmq.consumer import Consumer
+from rabbitmq.publisher import Publisher
 from legacy.parser import command_parse
 from cmd_handler import CMDHandler
-# from database.logs import LogType
+
 
 # Handles exiting when SIGTERM (sent by ^C input) is received 
 # in a gracefull way. Main loop will only exit after a completed iteration
@@ -20,20 +29,26 @@ def exit_gracefully(self, signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
-message_queue = queue.Queue()
-rabbit_queue = Consumer(
-    command_queue=message_queue,
-    connection_param='rabbitmq-commands',
-    exchange_name='backend',
-    queue_name='backend_queue',
-    routing_key='backend_queue'
-)
-
-command_handler = CMDHandler()
+def queue_thread(queue):
+    rabbit_queue = Consumer(
+        command_queue=queue,
+        connection_param='rabbitmq-backend',
+        exchange_name=os.environ["BACKEND_EXCHANGE"],
+        queue_name=os.environ["ROUTE_KEY"],
+        routing_key=os.environ["ROUTE_KEY"]
+    )
+    rabbit_queue.run()
 
 def main():
-    t_consumer = Thread(target=rabbit_queue.run)
+    publisher = Publisher()
+    publisher.setup_communication()
+
+    message_queue = queue.Queue()
+    command_handler = CMDHandler()
+
+    t_consumer = Thread(target=queue_thread, args=(message_queue,))
     t_consumer.start()
+
     transactionNum = 1 # to track the number of the transaction, for logging all logs of the same transaction must have the same number
     # transactionNum needs to change, should ideally be in the load balancer that handles distributing the commands
 
@@ -41,10 +56,9 @@ def main():
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
         if not message_queue.empty():
-            i = i+1
             result = command_parse(message_queue.get())
+            publisher.send("TESTTESTTEST1234")
             
-            start_time = time.time()
             command_handler.handle_command(transactionNum, result[0], result[1])
             transactionNum = transactionNum + 1
             

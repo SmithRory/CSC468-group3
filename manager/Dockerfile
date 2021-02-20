@@ -1,26 +1,13 @@
-FROM ubuntu:bionic
+FROM python:latest
 
-WORKDIR /usr/lib
+RUN mkdir /app
 
-#Install dependencies
-RUN apt-get update && apt-get install -y cmake openssl libssl-dev g++
+WORKDIR /app
 
-# RUN git clone https://github.com/alanxz/rabbitmq-c.git && cd rabbitmq-c
-# WORKDIR /usr/lib/rabbitmq-c
+COPY requirements.txt /app
+COPY src/ /app
 
-# RUN git checkout v0.10.0
-# RUN mkdir build
-# WORKDIR /usr/lib/rabbitmq-c/build
+#Add if running in VM --proxy="http://192.168.4.1:3128"
+RUN pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 
-# RUN cmake .. 
-# RUN cmake --build .
-# RUN ls
-
-WORKDIR /usr/manager
-COPY . .
-
-RUN mkdir build
-WORKDIR /usr/manager/build
-RUN cmake ..
-RUN cmake --build .
-CMD ["/usr/manager/build/load_balancer"]
+CMD ["python3", "main.py"]
