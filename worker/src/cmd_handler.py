@@ -10,7 +10,6 @@ import decimal
 import time
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
-# Helpful Doc https://docs.mongoengine.org/guide/querying.html#atomic-updates
 
 # TODO: turn dictionaries into cache 
 
