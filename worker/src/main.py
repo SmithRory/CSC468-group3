@@ -19,9 +19,9 @@ from legacy.parser import command_parse
 from cmd_handler import CMDHandler
 
 
-# Handles exiting when SIGTERM (sent by ^C input) is received 
+# Handles exiting when SIGTERM (sent by ^C input) is received
 # in a gracefull way. Main loop will only exit after a completed iteration
-# so that every service can shut down properly. 
+# so that every service can shut down properly.
 EXIT_PROGRAM = False
 def exit_gracefully(self, signum, frame):
     global EXIT_PROGRAM
@@ -29,15 +29,15 @@ def exit_gracefully(self, signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
-def queue_thread(queue):
-    rabbit_queue = Consumer(
-        command_queue=queue,
-        connection_param='rabbitmq-backend',
-        exchange_name=os.environ["BACKEND_EXCHANGE"],
-        queue_name=os.environ["ROUTE_KEY"],
-        routing_key=os.environ["ROUTE_KEY"]
-    )
-    rabbit_queue.run()
+# def queue_thread(queue):
+#     rabbit_queue = Consumer(
+#         command_queue=queue,
+#         connection_param='rabbitmq-backend',
+#         exchange_name=os.environ["BACKEND_EXCHANGE"],
+#         queue_name=os.environ["ROUTE_KEY"],
+#         routing_key=os.environ["ROUTE_KEY"]
+#     )
+#     rabbit_queue.run()
 
 def main():
     publisher = Publisher()
@@ -49,19 +49,14 @@ def main():
     t_consumer = Thread(target=queue_thread, args=(message_queue,))
     t_consumer.start()
 
-    transactionNum = 1 # to track the number of the transaction, for logging all logs of the same transaction must have the same number
-    # transactionNum needs to change, should ideally be in the load balancer that handles distributing the commands
-
-#     log = LogType().save() #should be in manager, starting off the log document/object
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
         if not message_queue.empty():
             result = command_parse(message_queue.get())
             publisher.send("[1] Confirm for test command")
-            
-            command_handler.handle_command(transactionNum, result[0], result[1])
-            transactionNum = transactionNum + 1
-            
+
+            command_handler.handle_command(result[0], result[1], result[2])
+
     t_consumer.join()
 
 if __name__ == "__main__":
