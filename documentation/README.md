@@ -22,9 +22,14 @@ The following steps are needed to get the software running in the VM provided by
 Once the VM has been setup, workloads can be run.
 
 1. Open a seperate terminal tab in the same directory as the `docker-compose up` command was run in.
-2. Run `python3 frontend_proxy.py --route backend_queue --exchange backend` to send commands to the system.
+2. Run `python3 frontend_proxy.py` to send commands to the system.
     *  To run a workload file append `-f <path to workload>` to the above command.
 3. To re-run a workload, remember to first delete the mongo-data docker volume to clean the database (sel below for details).
+
+## Helpful commands
+- `docker exec -it <container name> bash` to start a shell in the container
+- `docker container logs <container name>` to get stdout of any container
+- `docker kill <container name>` to remove a container (helpful for killing workers spun up by the manager)
 
 ## MongoDB
 
@@ -63,7 +68,9 @@ The following is how a user account is stored within MongoDB.
 - `docker-compose up -d` to get the container running in the background
 - `docker exec -it mongodb bash` to run the shell inside the running mongodb container
 - `mongo -u pygang_worker -p pygang_worker --authenticationDatabase pygangdb` to connect to the mongo instance
+- `use pygangdb` to use the correct database
 - Mongo shell commands can now be used with the same privilege as the worker container
+  - `db.accounts.find()` will print out all user accounts
 
 ### To wipe the database and all users:
 - `docker-compose ps` to see all running containers
