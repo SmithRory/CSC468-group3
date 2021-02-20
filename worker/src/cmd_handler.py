@@ -12,8 +12,6 @@ import time
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
 # Helpful Doc https://docs.mongoengine.org/guide/querying.html#atomic-updates
 
-# TODO: check the user exists before executing commands (this is only being done for the ADD so far)
-
 # TODO: turn dictionaries into cache 
 
 class CMDHandler:
