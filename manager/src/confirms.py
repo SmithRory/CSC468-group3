@@ -26,10 +26,13 @@ class Confirms():
 
     def on_receive(self, message):
         print(f"Received confirm: {message}")
-        number = int(re.search("[(.*)]", message))
+        number = re.findall(".*?\[(.*)].*", message)
+        number = int(number[0])
 
         with self.mutex:
             for worker in self.workers:
+                print(worker.commands)
                 if number in worker.commands:
                     worker.commands.remove(number)
+                    print(f"Removing command {number} from commands list")
                     return

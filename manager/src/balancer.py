@@ -72,7 +72,7 @@ class Balancer():
                     break
 
             if routing_key is None:
-                routing_key = self.assign_worker(command.uid)
+                routing_key = self.assign_worker(command.uid, command.number)
 
         self._channel.basic_publish(
             exchange=self._exchange,
@@ -83,7 +83,7 @@ class Balancer():
         print(f"Sent message to {routing_key}")
 
     ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
-    def assign_worker(self, uid: str) -> str:
+    def assign_worker(self, uid: str, number: int) -> str:
         minimum = len(self.workers[0].commands)
         best_worker = self.workers[0]
 
@@ -94,17 +94,19 @@ class Balancer():
 
         for user in self.user_ids:
             if user.user_id == uid:
-                print(f"Assigned worker {best_worker.container_id}")
+                print(f"Assigned worker {best_worker.container_id} to {uid}")
                 user.last_seen = time.time()
                 user.assigned_worker = best_worker.container_id
+                best_worker.commands.append(number)
                 return best_worker.route_key
 
         print(f"First contact with user {uid}")
-        print(f"Assigned worker {best_worker.container_id}")
+        print(f"Assigned worker {best_worker.container_id} to {uid}")
         self.user_ids.append(UserIds(
             user_id=uid,
             assigned_worker=best_worker.container_id,
             last_seen=time.time()
         ))
 
+        best_worker.commands.append(number)
         return best_worker.route_key
