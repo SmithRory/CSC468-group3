@@ -53,6 +53,7 @@ def main():
     WANTED_WORKERS = int(os.environ["NUM_WORKERS"])
     for i in range(0, WANTED_WORKERS):
         route_key = f"worker_queue_{i}"
+        server_name = f"worker_{i}"
         result = client.containers.run(
             image="csc468-group3_worker",
             detach=True,
@@ -60,6 +61,7 @@ def main():
             network="csc468-group3_custom_network",
             environment={
                 "ROUTE_KEY": route_key,
+                "SERVER_NAME": server_name,
                 "BACKEND_EXCHANGE": os.environ["BACKEND_EXCHANGE"],
                 "CONFIRMS_EXCHANGE": os.environ["CONFIRMS_EXCHANGE"],
                 "QUOTE_SERVER_PORT": os.environ["QUOTE_SERVER_PORT"],
