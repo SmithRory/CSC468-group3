@@ -1,6 +1,7 @@
 from database.accounts import Accounts, Stocks, AutoTransaction
 from database.logs import get_logs, AccountTransactionType, UserCommandType, SystemEventType, ErrorEventType, DebugType
 from mongoengine import DoesNotExist
+from rabbitmq.publisher import Publisher
 from threading import Timer
 from math import floor
 from legacy import quote, quote_cache, quote_polling
@@ -15,7 +16,10 @@ import time
 
 class CMDHandler:
 
-    def __init__(self):
+    def __init__(self, response_publisher : Publisher):
+        # Response publisher.
+        self.response_publisher = response_publisher
+
         # Auto-buy.
         self.uncommitted_buys = {} # which users have a pending buy, and the transaction info
         self.uncommitted_buy_timers = {} # the timer for each pending buy
@@ -808,4 +812,7 @@ class CMDHandler:
         func = switch.get(cmd, self.unknown_cmd)
 
         # Call the function to handle the command
-        func(transactionNum, params)
+        response = func(transactionNum, params)
+
+        # Send the response back.
+        self.response_publisher.send(response)
