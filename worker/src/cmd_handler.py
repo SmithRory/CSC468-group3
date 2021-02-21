@@ -42,6 +42,7 @@ class CMDHandler:
         # Note: user.account will return a 'float' if the user
         # has not been created, and 'decimal.Decimal` if they have been.
         if Accounts().user_exists(user_id):
+            
             # Update the account.
             update = {
                 'inc__account': decimal.Decimal(amount),
@@ -51,10 +52,12 @@ class CMDHandler:
 
             # Check the update succeeded.
             if ret != 1:
-                ErrorEventType().log(transactionNum=transactionNum, command="ADD", username=user_id, errorMessage="The user's account could not be saved.")
+                print(f"Error: Failed to update account {user_id}. Transaction num: {transactionNum}")
+                ErrorEventType().log(transactionNum=transactionNum, command="ADD", username=user_id, errorMessage="The user's account could not be updated.")
                 return
 
         else:
+            
             # Create the user if they don't exist.
             user = Accounts(user_id=user_id)
             user.account = user.account + amount
@@ -112,25 +115,27 @@ class CMDHandler:
         if num_stocks==0:
             # Notify the user the stock costs more than the amount given.
             print(f"The price of stock {stock_symbol} ({value}) is more than the amount requested ({max_debt}).")
-
             ErrorEventType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, errorMessage=f"The price of stock {stock_symbol} ({value}) is more than the amount requested ({max_debt}).")
             return
         
-        # Check if the user has enough available
+        # Check if the user has enough money available
         trans_price = value*num_stocks
-        users_account = Accounts.objects.get(pk=user_id)
+        users_account = Accounts.objects(pk=user_id).only('available')
         if trans_price > users_account.available:
             # Notify the user they don't have enough available funds.
             print("Insufficient funds to purchase stock.")
             ErrorEventType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, errorMessage="Insufficient funds.")
-
             return
-        else:
-            # Decrement the amount of available funds until a COMMIT or CANCEL happens.
-            # This is essentially reserving the funds.
-            users_account.available = users_account.available - decimal.Decimal(trans_price)
 
-        users_account.save()
+        else:
+            # Decrement the amount of available funds until a COMMIT or CANCEL happens. This is essentially reserving the funds.
+            ret = Accounts.objects(pk=user_id).update_one(inc__available=-decimal.Decimal(trans_price))
+
+            # Check the update succeeded.
+            if ret != 1:
+                print(f"Error: Failed to update account {user_id}. Transaction num: {transactionNum}")
+                ErrorEventType().log(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage="The user's account could not be updated.")
+                return
 
         # Forward the user the quote, prompt user to commit or cancel the buy command.
         print(f'Purchase price ({stock_symbol}): ${value} per stock x {num_stocks} stocks = ${trans_price}\nPlease issue COMMIT_BUY or CANCEL_BUY to complete the transaction.')
@@ -171,10 +176,14 @@ class CMDHandler:
             return
 
         # Free the reserved funds.
-        users_account = Accounts.objects.get(pk=user_id)
-        users_account.available = users_account.available + decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
-        users_account.save()
+        ret = Accounts.objects(pk=user_id).update_one(inc__available=decimal.Decimal(users_buy['num_stocks'] * users_buy['quote']))
 
+        # Check the update succeeded.
+        if ret != 1:
+            print(f"Error: Failed to update account {user_id}. Transaction num: {transactionNum}")
+            ErrorEventType().log(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage="The user's account could not be updated.")
+            return
+        
         # Re-issue the buy command.
         self.buy(transactionNum=transactionNum, params=[user_id, users_buy['stock'], users_buy['amount']])
         DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, debugMessage="BUY command has been re-issued")
@@ -208,9 +217,8 @@ class CMDHandler:
 
         # Complete the transaction.
         # Deduct the cost of the purchase. Note: the amount has already been deducted from the available funds.
-        user_account = Accounts.objects.get(pk=user_id)
-        cost = decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
-        user_account.account = user_account.account - cost
+        #user_account = Accounts.objects.get(pk=user_id)
+        #user_account.account = user_account.account - cost
         
         # Check if they already have some of this stock
         users_stocks = None
@@ -225,8 +233,28 @@ class CMDHandler:
             users_stock.amount = users_stock.amount + users_buy['num_stocks']
             users_stock.available = users_stock.available + users_buy['num_stocks']
 
+        ## TODO
+        cost = decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
+        user_account = Accounts.objects(pk=user_id).only('stocks')
+        try:
+            users_stock = user_account.stocks.get(symbol=users_buy['stock'])
+        except DoesNotExist:
+            pass
+
+        update = {
+            'inc__account': -cost,
+            #increment the stock amount if it exists, otherwise add the new stock.
+
+        }
+        ret = Accounts.objects(pk=user_id).update_one(**update)
+        # Check the update succeeded.
+        if ret != 1:
+            print(f"Error: Failed to update account {user_id}. Transaction num: {transactionNum}")
+            ErrorEventType().log(transactionNum=transactionNum, command="ADD", username=user_id, errorMessage="The user's account could not be updated.")
+            return
+
         # Save the document.
-        user_account.save()
+        #user_account.save()
         AccountTransactionType().log(transactionNum=transactionNum, action="remove", username=user_id, funds=cost)
 
         # Notify the user.
