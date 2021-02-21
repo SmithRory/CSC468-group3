@@ -41,30 +41,31 @@ class CMDHandler:
         # Get the user
         # Note: user.account will return a 'float' if the user
         # has not been created, and 'decimal.Decimal` if they have been.
-        try:
-            user = Accounts.objects.get(user_id=user_id)
-        except DoesNotExist:
+        if Accounts().user_exists(user_id):
+            # Update the account.
+            update = {
+                'inc__account': decimal.Decimal(amount),
+                'inc__available': decimal.Decimal(amount)
+            }
+            ret = Accounts.objects(pk=user_id).update_one(**update)
+
+            # Check the update succeeded.
+            if ret != 1:
+                ErrorEventType().log(transactionNum=transactionNum, command="ADD", username=user_id, errorMessage="The user's account could not be saved.")
+                return
+
+        else:
             # Create the user if they don't exist.
             user = Accounts(user_id=user_id)
             user.account = user.account + amount
             user.available = user.available + amount
-
-            # Log
-            DebugType().log(transactionNum=transactionNum, command="ADD", username=user_id, debugMessage=f"Creating user {user_id}.")
-        else:
-            # Update the account.
-            user.account = user.account + decimal.Decimal(amount)
-            user.available = user.available + decimal.Decimal(amount)
-
-        # Save the user
-        try:
             user.save()
-            AccountTransactionType().log(transactionNum=transactionNum, action="add", username=user_id, funds=amount)
-        except Exception as e:
-            # Let user know of the error
-            print(e)
-            ErrorEventType().log(transactionNum=transactionNum, command="ADD", username=user_id, errorMessage="The user's account could not be saved.")
-            return
+
+            # Log new user.
+            DebugType().log(transactionNum=transactionNum, command="ADD", username=user_id, debugMessage=f"Creating user {user_id}.")
+
+        # Log success.
+        AccountTransactionType().log(transactionNum=transactionNum, action="add", username=user_id, funds=amount)
 
         # Notify the user
         print(f"Successfully added ${amount} to account.")
@@ -117,7 +118,7 @@ class CMDHandler:
         
         # Check if the user has enough available
         trans_price = value*num_stocks
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         if trans_price > users_account.available:
             # Notify the user they don't have enough available funds.
             print("Insufficient funds to purchase stock.")
@@ -170,7 +171,7 @@ class CMDHandler:
             return
 
         # Free the reserved funds.
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_account.available = users_account.available + decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
         users_account.save()
 
@@ -207,7 +208,7 @@ class CMDHandler:
 
         # Complete the transaction.
         # Deduct the cost of the purchase. Note: the amount has already been deducted from the available funds.
-        user_account = Accounts.objects.get(user_id=user_id)
+        user_account = Accounts.objects.get(pk=user_id)
         cost = decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
         user_account.account = user_account.account - cost
         
@@ -260,7 +261,7 @@ class CMDHandler:
             return
 
         # Free the reserved funds.
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_account.available = users_account.available + decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
         users_account.save()
 
@@ -286,7 +287,7 @@ class CMDHandler:
         value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL")
 
         # Find the number of stocks the user owns.
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_stock = None
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
@@ -346,7 +347,7 @@ class CMDHandler:
             return
 
         # Free the reserved stocks.
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_stock = users_account.stocks.get(symbol=users_sell['stock'])
         users_stock.available = users_stock.available + decimal.Decimal(users_sell['num_stocks'])
         users_account.save()
@@ -386,7 +387,7 @@ class CMDHandler:
             DebugType().log(transactionNum=transactionNum, command="COMMIT_SELL", username=user_id, debugMessage="SELL timer is cancelled for this user")
 
         # Complete the transaction.
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         profit = decimal.Decimal(users_sell['num_stocks'] * users_sell['quote'])
 
         users_stock = None
@@ -446,7 +447,7 @@ class CMDHandler:
             return
 
         # Free the reserved stocks.
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_stock = users_account.stocks.get(symbol=users_sell['stock'])
         users_stock.available = users_stock.available + decimal.Decimal(users_sell['num_stocks'])
         users_account.save()
@@ -470,7 +471,7 @@ class CMDHandler:
             return
 
         # Add the stock and amount to the user's auto_buy list
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_auto_buy = None
         try:
             # Check if an auto buy already exists for this stock
@@ -507,7 +508,7 @@ class CMDHandler:
             return
 
         # Check the user has issued a SET_BUY_AMOUNT for the given stock.
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_auto_buy = None
         try:
             users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
@@ -557,7 +558,7 @@ class CMDHandler:
             return
 
         # Check to see if the user has an auto buy for this stock.
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_auto_buy = None
         try:
             users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
@@ -595,7 +596,7 @@ class CMDHandler:
             ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", errorMessage=f"User {user_id} does not exist.")
             return
 
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
 
         # Verify the user owns enough shares of the given stock.
         users_stock = None
@@ -647,7 +648,7 @@ class CMDHandler:
             return
 
         # Create the auto_sell
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
         users_auto_sell = None
         try:
             # Check to see if one exists for this stock
@@ -692,7 +693,7 @@ class CMDHandler:
 
         bad_cmd = True
         reserved_amount = 0
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
 
         # Check if just a SET_SELL_AMOUNT has been issued.
         pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)

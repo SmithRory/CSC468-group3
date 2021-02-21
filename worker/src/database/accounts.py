@@ -26,7 +26,7 @@ class Accounts(me.Document):
     def user_exists(self, user_id) -> bool:
         '''Checks if the user is in the database.'''
         try:
-            user = Accounts.objects.get(user_id=user_id)
+            user = Accounts.objects.get(pk=user_id)
         except me.DoesNotExist:
             return False
         else:

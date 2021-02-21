@@ -146,7 +146,7 @@ class QuotePollingThread(threading.Thread):
         print(f"Autobuy triggered for {user_id} since stock {stock_symbol} reached {value}.")
 
         # Get the user document
-        user_account = Accounts.objects.get(user_id=user_id)
+        user_account = Accounts.objects.get(pk=user_id)
 
         # Remove the auto buy transaction from the users list of auto buys
         users_auto_buy = user_account.auto_buy.get(symbol=stock_symbol)
@@ -183,7 +183,7 @@ class QuotePollingThread(threading.Thread):
         print(f"Autosell triggered for {user_id} since stock {stock_symbol} reached {value}.")
 
         # Get the user document
-        users_account = Accounts.objects.get(user_id=user_id)
+        users_account = Accounts.objects.get(pk=user_id)
 
         # Remove the auto sell.
         users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
