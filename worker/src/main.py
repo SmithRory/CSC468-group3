@@ -53,8 +53,6 @@ def main():
     while not EXIT_PROGRAM:
         if not message_queue.empty():
             result = command_parse(message_queue.get())
-            publisher.send("[1] Confirm for test command")
-
             command_handler.handle_command(result[0], result[1], result[2])
 
     t_consumer.join()
