@@ -132,8 +132,7 @@ class CMDHandler:
         
         # Check if the user has enough money available
         trans_price = value*num_stocks
-        users_account = Accounts.objects(pk=user_id).only('available')
-        print(f"Users Account: {users_account.to_json()}")
+        users_account = Accounts.objects(pk=user_id).only('available').first()
         if trans_price > users_account.available:
             # Notify the user they don't have enough available funds.
             err_msg = f"[{transactionNum}] Error: Insufficient funds to purchase stock {stock_symbol}."
@@ -327,8 +326,7 @@ class CMDHandler:
         value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL")
 
         # Find the number of stocks the user owns.
-        users_account = Accounts.objects(pk=user_id).only('stocks')
-        print(f"users account: {users_account.to_json()}")
+        users_account = Accounts.objects(pk=user_id).only('stocks').first()
         users_stock = None
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
