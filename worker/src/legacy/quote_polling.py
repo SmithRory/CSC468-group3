@@ -61,14 +61,16 @@ class UserPollingStocks:
 
     def add_user_autobuy(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
+            print(f"Adding stock {stock_symbol} to user_polling_stocks: {self.user_polling_stocks}")
             # Create dictionary for this stock if it's not made.
             auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': {}, 'auto_sell': {}})
-
+            print(f"After set default, user Polling stocks: {self.user_polling_stocks}\nauto_transactions: {auto_transactions}")
             # Set the values.
             auto_transactions['auto_buy'][user_id] = transactionNum
             auto_transactions['lastTransNum'] = transactionNum
             auto_transactions['lastCommand'] = command
             auto_transactions['lastUser'] = user_id
+            print(f"After all, user Polling stocks: {self.user_polling_stocks}\nauto_transactions: {auto_transactions}")
 
     def get_user_autosell(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
