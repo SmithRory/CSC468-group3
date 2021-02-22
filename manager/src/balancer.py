@@ -1,6 +1,6 @@
 from worker import UserIds
 from parser import Command, parse_command
-from threading import Thread
+from threading import Thread, Timer
 import time
 import os
 import pika
@@ -13,13 +13,18 @@ class Balancer():
         self.command_queue = queue
         self.mutex = mutex
 
+        self._cleanup_timer = None
+        self._CLEANUP_PERIOD = 15.0 # Seconds
+        self._USER_TIMEOUT = 10.0 # Seconds
+
         self._send_address = "rabbitmq-backend"
         self._exchange = os.environ["BACKEND_EXCHANGE"]
         self._connection = None
         self._channel = None
 
-    def setup_backend_communication(self):
-        while True:
+    def setup(self):
+        connected = False
+        while not connected:
             print("Attempting to connect to rabbitmq-backend")
             try:
                 self._connection = pika.BlockingConnection(
@@ -32,7 +37,7 @@ class Balancer():
                 self._channel.exchange_declare(exchange=self._exchange)
 
                 print("Connected to rabbitmq-backend")
-                return
+                connected = True
 
             except pika.exceptions.AMQPChannelError as err:
                 print(f"Failed to connect to rabbitmq-backend with error {err}")
@@ -41,11 +46,19 @@ class Balancer():
                 print("Failed to connect to rabbitmq-backend")
                 time.sleep(2)
 
+        self._cleanup_timer = Timer(
+            self._CLEANUP_PERIOD,
+            self.cleanup,
+            args=None,
+            kwargs=None
+        )
+        self._cleanup_timer.start()
+
     ''' Blocking function that connects to frontend and backend rabbit queue
     and then begins listening for incoming commands. 
     '''
     def run(self):
-        self.setup_backend_communication()
+        self.setup()
         
         while True:
             if not self.command_queue.empty():
@@ -94,7 +107,6 @@ class Balancer():
 
         for user in self.user_ids:
             if user.user_id == uid:
-                print(f"Assigned worker {best_worker.container_id} to {uid}")
                 user.last_seen = time.time()
                 user.assigned_worker = best_worker.container_id
                 best_worker.commands.append(number)
@@ -110,3 +122,23 @@ class Balancer():
 
         best_worker.commands.append(number)
         return best_worker.route_key
+
+    def cleanup(self):
+        with self.mutex:
+            print("\n\n")
+            for worker in self.workers:
+                print(worker)
+
+            for user in self.user_ids:
+                print(user)
+
+            self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
+
+        self._cleanup_timer = Timer(
+            self._CLEANUP_PERIOD,
+            self.cleanup,
+            args=None,
+            kwargs=None
+        )
+        self._cleanup_timer.start()
+
