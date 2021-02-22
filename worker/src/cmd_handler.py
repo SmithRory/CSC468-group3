@@ -456,7 +456,7 @@ class CMDHandler:
         update = {
             'inc__stocks__S__amount': -users_sell['num_stocks'],
             'inc__account': profit,
-            'inc_available': profit
+            'inc__available': profit
         }
         ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(**update)
         # Check if the account updated.
