@@ -54,27 +54,33 @@ class UserPollingStocks:
     def get_user_autobuy(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
         with self._lock:
-            user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_buy'].pop(user_id, None)
-            self.remove_if_empty(stock_symbol)
-            return user_transaction_num
+            if stock_symbol in self.user_polling_stocks:
+                user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_buy'].pop(user_id, None)
+                self.remove_if_empty(stock_symbol)
+                return user_transaction_num
+            else: return None
 
     def add_user_autobuy(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
+            print(f"Adding stock {stock_symbol} to user_polling_stocks: {self.user_polling_stocks}")
             # Create dictionary for this stock if it's not made.
             auto_transactions = self.user_polling_stocks.setdefault(stock_symbol, {'auto_buy': {}, 'auto_sell': {}})
-
+            print(f"After set default, user Polling stocks: {self.user_polling_stocks}\nauto_transactions: {auto_transactions}")
             # Set the values.
             auto_transactions['auto_buy'][user_id] = transactionNum
             auto_transactions['lastTransNum'] = transactionNum
             auto_transactions['lastCommand'] = command
             auto_transactions['lastUser'] = user_id
+            print(f"After all, user Polling stocks: {self.user_polling_stocks}\nauto_transactions: {auto_transactions}")
 
     def get_user_autosell(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
         with self._lock:
-            user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_sell'].pop(user_id, None)
-            self.remove_if_empty(stock_symbol)
-            return user_transaction_num
+            if stock_symbol in self.user_polling_stocks:
+                user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_sell'].pop(user_id, None)
+                self.remove_if_empty(stock_symbol)
+                return user_transaction_num
+            else: return None
 
     def add_user_autosell(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
@@ -120,9 +126,11 @@ class QuotePollingThread(threading.Thread):
 
         # Get all users that have an auto buy trigger equal to or less than the quote value.
         auto_buy_users = Accounts.objects(__raw__={"auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
+        print(f"AUTO_BUY_USERS: {auto_buy_users.to_json()}")
 
         # Get all users that have an auto sell trigger equal to or greater than the quote value.
         auto_sell_users = Accounts.objects(__raw__={"auto_sell": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$gte": value}}}}).only('user_id')
+        print(f"AUTO_BUY_USERS: {auto_buy_users.to_json()}")
 
         # Perform auto buy for all the users.
         for user in auto_buy_users:

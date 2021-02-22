@@ -67,7 +67,7 @@ class Balancer():
         print("End of balancer thread")
 
     def balance(self, message: str):
-        print(f"Received message:{message}")
+        #print(f"Received message:{message}")
 
         routing_key = None
         command = parse_command(message)
@@ -87,13 +87,14 @@ class Balancer():
             if routing_key is None:
                 routing_key = self.assign_worker(command.uid, command.number)
 
+        print(f"Sent command from uid={command.uid} to worker={routing_key}")
         self._channel.basic_publish(
             exchange=self._exchange,
             routing_key=routing_key,
             body=message,
             properties=pika.BasicProperties()
         )
-        print(f"Sent message to {routing_key}")
+        #print(f"Sent message to {routing_key}")
 
     ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
     def assign_worker(self, uid: str, number: int) -> str:
@@ -128,9 +129,11 @@ class Balancer():
             print("\n\n")
             for worker in self.workers:
                 print(worker)
+                pass
 
             for user in self.user_ids:
                 print(user)
+                pass
 
             self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
 
