@@ -257,7 +257,7 @@ class CMDHandler:
 
         # Notify the user.
         AccountTransactionType().log(transactionNum=transactionNum, action="remove", username=user_id, funds=cost)
-        ok_msg = f"[{transactionNum}] Successfully purchased {users_buy['num_stocks']} of stock {stock_symbol}."
+        ok_msg = f"[{transactionNum}] Successfully purchased {users_buy['num_stocks']} of stock {users_buy['stock']}."
         print(ok_msg)
         return ok_msg
 
