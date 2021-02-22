@@ -133,6 +133,7 @@ class CMDHandler:
         # Check if the user has enough money available
         trans_price = value*num_stocks
         users_account = Accounts.objects(pk=user_id).only('available')
+        print(f"Users Account: {users_account.to_json()}")
         if trans_price > users_account.available:
             # Notify the user they don't have enough available funds.
             err_msg = f"[{transactionNum}] Error: Insufficient funds to purchase stock {stock_symbol}."
