@@ -21,8 +21,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
     global s
 
     result = quote_cache.get(stock_name)
-    timestampForLog = round(time.time()*1000)
-    
+
     if result is None:
         command = f'{stock_name}, {uid}\n'
 
@@ -35,11 +34,8 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
 
             response = parser.quote_result_parse(data.decode('utf-8'))
 
-            timestampForLog = time.time()
-
             quote_cache.add(stock_name, response[0], response[3])
 
-            # update after trying on quote server, update quote server time too
             QuoteServerType().log(transactionNum=transactionNum, price=response[0], stockSymbol=stock_name, username=uid, quoteServerTime=response[3], cryptokey=response[4])
 
             return response[0] # Only returns the stock price
