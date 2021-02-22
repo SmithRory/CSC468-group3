@@ -331,7 +331,7 @@ class CMDHandler:
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
             if users_stock.amount == 0: # Remove this stock since it's empty.
-                ret = Accounts.objects.find(pk=user_id).update(pull__stocks__symbol=stock_symbol)
+                ret = Accounts.objects(pk=user_id).update(pull__stocks__symbol=stock_symbol)
                 if ret != 1:
                     print(f"[{transactionNum}] Error: (Sell) Could not remove empty stock from account {user_id}.")
         except DoesNotExist:
@@ -458,7 +458,7 @@ class CMDHandler:
             'inc__account': profit,
             'inc_available': profit
         }
-        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(**update)
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(**update)
         # Check if the account updated.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (CommitSell) Failed to update account {user_id}."
@@ -504,7 +504,7 @@ class CMDHandler:
             return err_msg
 
         # Free the reserved stocks.
-        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
         # Check if the update worked.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (CancelSell) Failed to update account {user_id}."
