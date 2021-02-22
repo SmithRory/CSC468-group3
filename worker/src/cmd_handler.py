@@ -241,7 +241,7 @@ class CMDHandler:
         # Complete the transaction.
         # Deduct the cost of the purchase. Note: the amount has already been deducted from the available funds.
         cost = decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
-        user_account = Accounts.objects(pk=user_id).only('stocks', 'account')
+        user_account = Accounts.objects(pk=user_id).only('stocks', 'account').first()
         user_account.account = user_account.account - cost
         try:
             users_stock = user_account.stocks.get(symbol=users_buy['stock'])
