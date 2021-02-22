@@ -54,6 +54,7 @@ class UserPollingStocks:
     def get_user_autobuy(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
         with self._lock:
+            print(f"user stocks: {self.user_polling_stocks}")
             user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_buy'].pop(user_id, None)
             self.remove_if_empty(stock_symbol)
             return user_transaction_num
