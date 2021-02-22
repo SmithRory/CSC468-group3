@@ -403,7 +403,7 @@ class CMDHandler:
             return
 
         # Free the reserved stocks.
-        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (SellTimeout) Failed to free reserved stocks for {user_id}."
