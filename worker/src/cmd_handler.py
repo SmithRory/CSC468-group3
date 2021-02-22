@@ -326,7 +326,7 @@ class CMDHandler:
         value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL")
 
         # Find the number of stocks the user owns.
-        users_account = Accounts.objects.get(pk=user_id).only('stocks')
+        users_account = Accounts.objects(pk=user_id).only('stocks')
         users_stock = None
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
