@@ -54,10 +54,11 @@ class UserPollingStocks:
     def get_user_autobuy(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
         with self._lock:
-            print(f"user stocks: {self.user_polling_stocks}")
-            user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_buy'].pop(user_id, None)
-            self.remove_if_empty(stock_symbol)
-            return user_transaction_num
+            if stock_symbol in self.user_polling_stocks:
+                user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_buy'].pop(user_id, None)
+                self.remove_if_empty(stock_symbol)
+                return user_transaction_num
+            else: return None
 
     def add_user_autobuy(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
@@ -75,9 +76,11 @@ class UserPollingStocks:
     def get_user_autosell(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
         with self._lock:
-            user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_sell'].pop(user_id, None)
-            self.remove_if_empty(stock_symbol)
-            return user_transaction_num
+            if stock_symbol in self.user_polling_stocks:
+                user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_sell'].pop(user_id, None)
+                self.remove_if_empty(stock_symbol)
+                return user_transaction_num
+            else: return None
 
     def add_user_autosell(self, user_id, stock_symbol, transactionNum, command):
         with self._lock:
@@ -128,7 +131,7 @@ class QuotePollingThread(threading.Thread):
         # Get all users that have an auto sell trigger equal to or greater than the quote value.
         auto_sell_users = Accounts.objects(__raw__={"auto_sell": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$gte": value}}}}).only('user_id')
         print(f"AUTO_BUY_USERS: {auto_buy_users.to_json()}")
-        
+
         # Perform auto buy for all the users.
         for user in auto_buy_users:
             user_id = user.user_id
