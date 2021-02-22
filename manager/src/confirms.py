@@ -2,6 +2,7 @@ from consumer import Consumer
 import os
 import re
 from threading import Lock
+import sys
 
 class Confirms():
     def __init__(self, workers, mutex):
@@ -25,9 +26,10 @@ class Confirms():
         self._consumer.run()
 
     def on_receive(self, message):
-        print(message)
         number = re.findall(".*?\[(.*)].*", message)
         number = int(number[0])
+        print(f"Recv confirm {message} with id: {number}")
+        sys.stdout.flush()
 
         with self.mutex:
             for worker in self.workers:
