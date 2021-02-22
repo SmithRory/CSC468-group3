@@ -257,7 +257,7 @@ class CMDHandler:
 
         # Notify the user.
         AccountTransactionType().log(transactionNum=transactionNum, action="remove", username=user_id, funds=cost)
-        ok_msg = f"[{transactionNum}] Successfully purchased stock."
+        ok_msg = f"[{transactionNum}] Successfully purchased {users_buy['num_stocks']} of stock {stock_symbol}."
         print(ok_msg)
         return ok_msg
 
@@ -265,7 +265,7 @@ class CMDHandler:
     def cancel_buy(self, transactionNum, params) -> str:
         
         user_id = params[0]
-
+find
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_BUY", username=user_id)
 
         # Check if the user exists.
