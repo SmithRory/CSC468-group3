@@ -5,6 +5,7 @@ import time
 import os
 import pika
 import queue
+import sys
 
 class Balancer():
     def __init__(self, workers, queue, mutex):
@@ -87,7 +88,7 @@ class Balancer():
             if routing_key is None:
                 routing_key = self.assign_worker(command.uid, command.number)
 
-        print(f"Sent command from uid={command.uid} to worker={routing_key}")
+        #print(f"Sent command from uid={command.uid} to worker={routing_key}")
         self._channel.basic_publish(
             exchange=self._exchange,
             routing_key=routing_key,
@@ -136,6 +137,8 @@ class Balancer():
                 pass
 
             self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
+
+        sys.stdout.flush()
 
         self._cleanup_timer = Timer(
             self._CLEANUP_PERIOD,
