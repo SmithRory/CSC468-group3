@@ -37,9 +37,19 @@ class Publisher:
                 time.sleep(2)
 
     def send(self, message: str):
-        self._channel.basic_publish(
-            exchange=self._exchange,
-            routing_key="confirm",
-            body=message,
-            properties=pika.BasicProperties()
-        )
+        try:
+            self._channel.basic_publish(
+                exchange=self._exchange,
+                routing_key="confirm",
+                body=message,
+                properties=pika.BasicProperties()
+            )
+        except:
+            self.setup_communication()
+            self._channel.basic_publish(
+                exchange=self._exchange,
+                routing_key="confirm",
+                body=message,
+                properties=pika.BasicProperties()
+            )
+

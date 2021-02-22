@@ -13,7 +13,6 @@ def parse_command(command: str) -> Command:
     filtered = ''.join(filter(whitelist.__contains__, command))
 
     tokens = filtered.split(',')
-    print(f"Tokens: {tokens}")
     if len(tokens) < 2:
         return Command(number=-1, command='', uid='', params=[])
 

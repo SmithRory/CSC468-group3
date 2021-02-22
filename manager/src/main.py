@@ -93,8 +93,8 @@ def main():
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
-        time.sleep(1) 
-        sys.stdout.flush()         
+        time.sleep(10) 
+        #sys.stdout.flush()         
         
     for worker in workers:
         worker_container = client.containers.get(worker.container_id)
