@@ -57,4 +57,4 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
     print("Quote used from cache!!")
     SystemEventType().log(transactionNum=transactionNum, command=userCommand, username=uid, stockSymbol=stock_name)
 
-    return result.value
+    return result
