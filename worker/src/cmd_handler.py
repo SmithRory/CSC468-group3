@@ -172,7 +172,6 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
-
     # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
     def buy_timeout_handler(self, transactionNum, user_id):
 
@@ -256,7 +255,6 @@ class CMDHandler:
             users_stock.available = users_stock.available + users_buy['num_stocks']
         user_account.save()
 
-
         # Notify the user.
         AccountTransactionType().log(transactionNum=transactionNum, action="remove", username=user_id, funds=cost)
         ok_msg = f"[{transactionNum}] Successfully purchased stock."
@@ -294,9 +292,13 @@ class CMDHandler:
             return err_msg
 
         # Free the reserved funds.
-        users_account = Accounts.objects.get(pk=user_id)
-        users_account.available = users_account.available + decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
-        users_account.save()
+        ret = Accounts.objects(pk=user_id).update_one(inc__available=decimal.Decimal(users_buy['num_stocks'] * users_buy['quote']))
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_BUY", username=user_id, errorMessage=err_msg)
+            return err_msg
 
         # Notify the user.
         ok_msg = f"[{transactionNum}] Successfully cancelled stock purchase."
@@ -324,17 +326,21 @@ class CMDHandler:
         value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL")
 
         # Find the number of stocks the user owns.
-        users_account = Accounts.objects.get(pk=user_id)
+        users_account = Accounts.objects.get(pk=user_id).only('stocks')
         users_stock = None
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
+            if users_stock.amount == 0: # Remove this stock since it's empty.
+                ret = Accounts.objects.find(pk=user_id).update(pull__stocks__symbol=stock_symbol)
+                if ret != 1:
+                    print(f"[{transactionNum}] Error: (Sell) Could not remove empty stock from account {user_id}.")
         except DoesNotExist:
             # The user does not own any of the stock they want to sell.
             err_msg = f"[{transactionNum}] Error: Invalid SELL command. The stock {stock_symbol} is not owned."
             print(err_msg)
             ErrorEventType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage=err_msg)
             return err_msg
-
+        
         # Check if the user has enough of the given stock.
         num_to_sell = floor( sell_amount / value )
         if num_to_sell > users_stock.available:
@@ -349,8 +355,13 @@ class CMDHandler:
         self.uncommitted_sells.update(uncommitted_sell)
 
         # Set aside the needed number of stocks.
-        users_stock.available = users_stock.available - decimal.Decimal(num_to_sell)
-        users_account.save()
+        ret = Accounts.objects.find(pk=user_id, stocks__symbol=stock_symbol).update(inc__stocks__S__available=-decimal.Decimal(num_to_sell))
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SELL", username=user_id, errorMessage=err_msg)
+            return err_msg
 
         # Cancel any previous timers for this user. There can only be one pending sell at a time.
         previous_timer = self.uncommitted_sell_timers.pop(user_id, None)
@@ -392,14 +403,19 @@ class CMDHandler:
             return
 
         # Free the reserved stocks.
-        users_account = Accounts.objects.get(pk=user_id)
-        users_stock = users_account.stocks.get(symbol=users_sell['stock'])
-        users_stock.available = users_stock.available + decimal.Decimal(users_sell['num_stocks'])
-        users_account.save()
+        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (SellTimeout) Failed to free reserved stocks for {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SELL", username=user_id, errorMessage=err_msg)
+            self.send_response(err_msg)
+            return
 
         # Notify the user their SELL has expired.
         ok_msg = f"[{transactionNum}] The SELL command has expired and will be re-issued."
         print(ok_msg)
+        self.send_response(ok_msg)
 
         # Re-issue the SELL command.
         self.sell(transactionNum = transactionNum, params = [user_id, users_sell['stock'], users_sell['amount']])
@@ -436,32 +452,20 @@ class CMDHandler:
             DebugType().log(transactionNum=transactionNum, command="COMMIT_SELL", username=user_id, debugMessage="SELL timer is cancelled for this user")
 
         # Complete the transaction.
-        users_account = Accounts.objects.get(pk=user_id)
         profit = decimal.Decimal(users_sell['num_stocks'] * users_sell['quote'])
-
-        users_stock = None
-        try:
-            users_stock = users_account.stocks.get(symbol=users_sell['stock'])
-        except DoesNotExist:
-            # This should never happen.
-            err_msg = f"[{transactionNum}] Error: Stock {users_sell['stock']} not found in users account."
+        update = {
+            'inc__stocks__S__amount': -users_sell['num_stocks'],
+            'inc__account': profit,
+            'inc_available': profit
+        }
+        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(**update)
+        # Check if the account updated.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (CommitSell) Failed to update account {user_id}."
             print(err_msg)
             ErrorEventType().log(transactionNum=transactionNum, command="COMMIT_SELL", username=user_id, errorMessage=err_msg)
             return err_msg
-        
-        if users_stock.amount == users_sell['num_stocks']:
-            # Remove the stock from the list.
-            users_account.stocks.remove(users_stock)
-        else:
-            # Deduct the amount of the stock.
-            users_stock.amount = users_stock.amount - users_sell['num_stocks']
 
-        # Add the transaction profit to the account.
-        users_account.account = users_account.account + profit
-        users_account.available = users_account.available + profit
-
-        # Save the document.
-        users_account.save()
         AccountTransactionType().log(transactionNum=transactionNum, action="add", username=user_id, funds=profit)
 
         # Notify the users.
@@ -500,12 +504,19 @@ class CMDHandler:
             return err_msg
 
         # Free the reserved stocks.
-        users_account = Accounts.objects.get(pk=user_id)
-        users_stock = users_account.stocks.get(symbol=users_sell['stock'])
-        users_stock.available = users_stock.available + decimal.Decimal(users_sell['num_stocks'])
-        users_account.save()
+        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
+        # Check if the update worked.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (CancelSell) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SELL", username=user_id, errorMessage=err_msg)
+            return err_msg
 
-        # Notify the user.f"[{transactionNum}] Successfully cancelled sell transaction."
+        # Notify the user.
+        ok_msg = f"[{transactionNum}] Successfully cancelled sell transaction."
+        print(ok_msg)
+        DebugType().log(transactionNum=transactionNum, command="CANCEL_SELL", username=user_id, debugMessage=ok_msg)
+        return ok_msg
 
     # params: user_id, stock_symbol, amount
     def set_buy_amount(self, transactionNum, params) -> str:
@@ -848,8 +859,8 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
-    def unknown_cmd(self, transactionNum, params) -> str:
-        err_msg = f"[{transactionNum}] Error: Unknown Command. {''.join(params)}"
+    def unknown_cmd(self, transactionNum, cmd) -> str:
+        err_msg = f"[{transactionNum}] Error: Unknown Command. {cmd}"
         ErrorEventType().log(transactionNum=transactionNum, command="UNKNOWN_COMMAND", errorMessage=err_msg)
         print(err_msg)
         return err_msg
@@ -885,9 +896,13 @@ class CMDHandler:
         
         # Get the function
         func = switch.get(cmd, self.unknown_cmd)
-
-        # Call the function to handle the command
-        response = func(transactionNum, params)
+        
+        # Handle the command.
+        response = ''
+        if func == self.unknown_cmd:
+            response = self.unknown_cmd(transactionNum=transactionNum, cmd=cmd)
+        else:
+            response = func(transactionNum, params)
 
         # Send the response back.
         self.response_publisher.send(response)
