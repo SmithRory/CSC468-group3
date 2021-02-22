@@ -355,7 +355,7 @@ class CMDHandler:
         self.uncommitted_sells.update(uncommitted_sell)
 
         # Set aside the needed number of stocks.
-        ret = Accounts.objects.find(pk=user_id, stocks__symbol=stock_symbol).update(inc__stocks__S__available=-decimal.Decimal(num_to_sell))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=stock_symbol).update(inc__stocks__S__available=-decimal.Decimal(num_to_sell))
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: Failed to update account {user_id}."
