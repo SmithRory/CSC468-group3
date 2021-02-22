@@ -265,7 +265,7 @@ class CMDHandler:
     def cancel_buy(self, transactionNum, params) -> str:
         
         user_id = params[0]
-find
+
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_BUY", username=user_id)
 
         # Check if the user exists.
