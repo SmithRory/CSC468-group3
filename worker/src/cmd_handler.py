@@ -327,6 +327,7 @@ class CMDHandler:
 
         # Find the number of stocks the user owns.
         users_account = Accounts.objects(pk=user_id).only('stocks')
+        print(f"users account: {users_account.to_json()}")
         users_stock = None
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
