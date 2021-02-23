@@ -5,6 +5,8 @@ services:
   # flask:
   #   build: frontend
   #   container_name: flask
+  # networks:
+    # - custom_network
   #   restart: always
   #   expose:
   #     - 8080
@@ -14,66 +16,79 @@ services:
   # nginx:
   #   build: nginx
   #   container_name: nginx
+  # networks:
+    # - custom_network
   #   restart: always
   #   ports:
   #     - 80:80
 
-  # manager:
-  #   build: manager
-  #   container_name: manager
-  #   restart: always
-  #   depends_on:
-  #     - rabbitmq_commands
-      # - rabbitmq_confirm
-  #   expose:
-  #     - ${BACKEND_PORT}
-  #   environment: 
-  #     - BACKEND_PORT=${BACKEND_PORT}
-  #     - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
-  #   volumes: 
-  #     - /var/run/docker.sock:/var/run/docker.sock
-
-  worker:
-    build: worker
-    container_name: worker
+  manager:
+    build: manager
+    container_name: manager
+    networks:
+     - custom_network
     restart: always
+    depends_on:
+      - rabbitmq_backend
+      - rabbitmq_frontend
+      - rabbitmq_confirm
     environment: 
+      - NUM_WORKERS=${NUM_WORKERS}
+      - FRONTEND_EXCHANGE=${FRONTEND_EXCHANGE}
+      - BACKEND_EXCHANGE=${BACKEND_EXCHANGE}
+      - CONFIRMS_EXCHANGE=${CONFIRMS_EXCHANGE}
       - QUOTE_SERVER_PORT=${QUOTE_SERVER_PORT}
       - MONGODB_DATABASE=pygangdb
       - MONGODB_USERNAME=pygang_worker
       - MONGODB_PASSWORD=pygang_worker
       - MONGODB_HOSTNAME=mongodb
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  worker:
+    build: worker
+    container_name: worker
+    networks:
+     - custom_network
+    restart: always
     depends_on:
       - mongodb
-      - rabbitmq_commands
+      - rabbitmq_backend
       - rabbitmq_confirm
     ports:
       - 4444:4444
     extra_hosts:
       - "quoteserver.seng.uvic.ca:192.168.4.2"
     
-  rabbitmq_commands:
+  rabbitmq_frontend:
     image: rabbitmq:3-management
-    container_name: rabbitmq-commands
-    # volumes:
-    #   - ./.docker/rabbitmq/etc/:/etc/rabbitmq/
-    #   - ./.docker/rabbitmq/data/:/var/lib/rabbitmq/
-    #   - ./.docker/rabbitmq/logs/:/var/log/rabbitmq/
+    container_name: rabbitmq-frontend
+    networks:
+     - custom_network
     # environment:
-    #   RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
-    #   RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-    #   RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    #   - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-admin}
+    #   - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-admin}
     ports:
       - 5672:5672
       - 15672:15672
 
+  rabbitmq_backend:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-backend
+    networks:
+     - custom_network
+
   rabbitmq_confirm:
     image: rabbitmq:3-management
     container_name: rabbitmq-confirm
+    networks:
+     - custom_network
 
   mongodb:
     image: mongo
     container_name: mongodb
+    networks:
+     - custom_network
     restart: unless-stopped
     command: mongod --auth
     environment:
@@ -85,13 +100,11 @@ services:
     volumes:
      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
      - mongo-data:/data/db
-    # networks:
-    #   - mongodb
-
-# networks:
-#   mongodb:
-#     driver: bridge # Allows the worker to communicate w/ mongo w/o exposing ports.
 
 volumes:
   mongo-data:
     driver: local
+
+networks:
+  custom_network:
+    driver: bridge

@@ -13,7 +13,7 @@ parser = ArgumentParser(
 )
 parser.add_argument('-a', '--address',
     dest='address', default='localhost',
-    help='IP address for backend server'
+    help='IP address for frontend server'
 )
 parser.add_argument('-p', '--port',
     dest='port', default=1234,
@@ -29,18 +29,22 @@ parser.add_argument('-v', '--verbose',
     help='Print debug information'
 )
 parser.add_argument('--route',
-    dest='queue', default='frontend_queue',
+    dest='route_key', default='frontend',
     help='Specify routing key used by the exchange'
 )
 parser.add_argument('--exchange',
-    dest='exchange', default='frontend',
+    dest='exchange', default='frontend_exchange',
     help='Rabbit queue exchange'
 )
 args=parser.parse_args()
 
 
 connection = pika.BlockingConnection(
-    pika.ConnectionParameters(host=args.address)
+    pika.ConnectionParameters(
+        host=args.address,
+        heartbeat=600,
+        blocked_connection_timeout=300
+    )
 )
 channel = connection.channel()
 channel.exchange_declare(exchange=args.exchange)
@@ -58,13 +62,9 @@ def send_workload() -> None:
     else:
         f = open(args.filename, 'r')
         for l in f:
-            if ']' in l:
-                tokens = l.split(']')
-                l = tokens[1]
-
             channel.basic_publish(
                 exchange=args.exchange,
-                routing_key=args.queue,
+                routing_key=args.route_key,
                 body=l,
                 properties=pika.BasicProperties()
             )
@@ -79,7 +79,7 @@ def send_user_input() -> None:
 
         channel.basic_publish(
             exchange=args.exchange,
-            routing_key=args.queue,
+            routing_key=args.route_key,
             body=user_input,
             properties=pika.BasicProperties()
         )

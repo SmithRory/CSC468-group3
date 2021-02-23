@@ -1,0 +1,53 @@
+{% extends 'bootstrap/base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body { background: #e8f1f9; }
+</style>
+{% endblock %}
+
+
+{% block title %}
+Day Trading App
+{% endblock %}
+
+
+{% block content %}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
+
+            <h1 class="pt-5 pb-2">Day Trading!</h1>
+
+            <p class="lead">Manage your day trading account here</p>
+
+            {{ wtf.quick_form(form) }}
+
+            <script>
+                command_select = document.getElementById('userCommand');
+                command_select.onchange = function () {
+                    fetch('/stockSymbol/' + command_select.value).then(function (response) {
+                        response.json().then(function (data){
+                            console.log(command_select)
+                            console.table(data);
+                            document.getElementById('stock_symbol').disabled = data.need
+                        });
+                    });
+                    fetch('/amount/' + command_select.value).then(function (response) {
+                        response.json().then(function (data){
+                            console.log(command_select)
+                            console.table(data);
+                            document.getElementById('funds').disabled = data.need
+                        });
+                    });
+                }
+            </script>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
