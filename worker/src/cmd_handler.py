@@ -132,10 +132,10 @@ class CMDHandler:
         
         # Check if the user has enough money available
         trans_price = value*num_stocks
-        users_account = Accounts.objects(pk=user_id).only('available').first()
-        if trans_price > users_account.available:
+        users_account = Accounts.objects(__raw__={"_id": user_id}).only('available').first()
+        if users_account is not None and trans_price > users_account.available:
             # Notify the user they don't have enough available funds.
-            err_msg = f"[{transactionNum}] Error: Insufficient funds to purchase stock {stock_symbol}."
+            err_msg = f"[{transactionNum}] Error: (Buy) Insufficient funds to purchase stock {stock_symbol}."
             print(err_msg)
             ErrorEventType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, errorMessage=err_msg)
             return err_msg
@@ -238,22 +238,33 @@ class CMDHandler:
             commit_timer.cancel()
             DebugType().log(transactionNum=transactionNum, command="COMMIT_BUY", username=user_id, debugMessage="BUY timer cancelled for the user")
 
-        # Complete the transaction.
-        # Deduct the cost of the purchase. Note: the amount has already been deducted from the available funds.
+        # Complete the transaction. Note: the amount has already been deducted from the available funds.
         cost = decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
-        user_account = Accounts.objects(pk=user_id).only('stocks', 'account').first()
-        user_account.account = user_account.account - cost
+        user_account = Accounts.objects(__raw__={"_id": user_id}).only('stocks', 'account').first()
         try:
             users_stock = user_account.stocks.get(symbol=users_buy['stock'])
         except DoesNotExist:
-            # Create a new stock.
-            new_stock = Stocks(symbol=users_buy['stock'], amount=users_buy['num_stocks'], available=users_buy['num_stocks'])      
-            user_account.stocks.append(new_stock)
+            # Create a new stock. Deduct the cost of the stock.
+            new_stock = Stocks(symbol=users_buy['stock'], amount=users_buy['num_stocks'], available=users_buy['num_stocks'])   
+            update = {
+                'inc__account': -cost,
+                'push__stocks': new_stock
+            }
         else:
-            # Increment the existing stock.
-            users_stock.amount = users_stock.amount + users_buy['num_stocks']
-            users_stock.available = users_stock.available + users_buy['num_stocks']
-        user_account.save()
+            # Increment the existing stock. Deduct the cost of the stock.
+            update = {
+                'inc__account': -cost,
+                'inc__stocks__S__amount': users_buy['num_stocks'],
+                'inc__stocks__S__available': users_buy['num_stocks']
+            }
+        
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_buy['stock']).update(**update)
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (CommitBuy) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="COMMIT_BUY", username=user_id, errorMessage=err_msg)
+            return err_msg
 
         # Notify the user.
         AccountTransactionType().log(transactionNum=transactionNum, action="remove", username=user_id, funds=cost)
@@ -326,14 +337,18 @@ class CMDHandler:
         value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL")
 
         # Find the number of stocks the user owns.
-        users_account = Accounts.objects(pk=user_id).only('stocks').first()
-        users_stock = None
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('stocks').first()
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
             if users_stock.amount == 0: # Remove this stock since it's empty.
                 ret = Accounts.objects(pk=user_id).update(pull__stocks__symbol=stock_symbol)
                 if ret != 1:
-                    print(f"[{transactionNum}] Error: (Sell) Could not remove empty stock from account {user_id}.")
+                    # Failed to update account.
+                    err_msg = f"[{transactionNum}] Error: (Sell) Could not remove empty stock from account {user_id}."
+                    print(err_msg)
+                    ErrorEventType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage=err_msg)
+                    return err_msg
+
         except DoesNotExist:
             # The user does not own any of the stock they want to sell.
             err_msg = f"[{transactionNum}] Error: Invalid SELL command. The stock {stock_symbol} is not owned."
@@ -536,22 +551,31 @@ class CMDHandler:
             return err_msg
 
         # Add the stock and amount to the user's auto_buy list
-        users_account = Accounts.objects.get(pk=user_id)
-        users_auto_buy = None
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_buy').first()
         try:
             # Check if an auto buy already exists for this stock
             users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
         except DoesNotExist:
             # Create the auto_buy embedded document for this stock.
             new_auto_buy = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=buy_amount)
-            users_account.auto_buy.append(new_auto_buy)
+            update = {
+                'push__auto_buy':new_auto_buy
+            }
         else:
             # Update the auto buy amount, reset the buy trigger.
-            users_auto_buy.amount = buy_amount
-            users_auto_buy.trigger = 0.00
+            update = {
+                'set__auto_buy__S__amount': buy_amount,
+                'set__auto_buy__S__trigger': 0.00
+            }
 
-        # Save the document.
-        users_account.save()
+        ret = Accounts.objects(pk=user_id, auto_buy__symbol=stock_symbol).update(**update)
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (SetBuyAmount) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, errorMessage=err_msg)
+            return err_msg
+
         DebugType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=buy_amount, debugMessage="AUTO BUY amount is now set, trigger reset as needed")
 
         # Notify the user.
@@ -577,8 +601,7 @@ class CMDHandler:
             return err_msg
 
         # Check the user has issued a SET_BUY_AMOUNT for the given stock.
-        users_account = Accounts.objects.get(pk=user_id)
-        users_auto_buy = None
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_buy', 'available').first()
         try:
             users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
         except DoesNotExist:
@@ -597,17 +620,25 @@ class CMDHandler:
             ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, errorMessage=err_msg)
             return err_msg
 
-        # Set the auto buy trigger.
-        users_auto_buy.trigger = buy_trigger
-        DebugType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, debugMessage="AUTO BUY trigger is set")
+        # Set the auto buy trigger, deduct money from the available account.
+        update = {
+            'set__auto_buy__S__trigger': buy_trigger,
+            'inc__available': -decimal.Decimal(transaction_price)
+        }
 
-        # Deduct money from the available account
-        users_account.available = users_account.available - decimal.Decimal(transaction_price)
-        users_account.save()
-
+        ret = Accounts.objects(pk=user_id, auto_buy__symbol=stock_symbol).update(**update)
+        # Check that the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (SetBuyTrigger) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, errorMessage=err_msg)
+            return err_msg
+        
         # Add the user to the list of auto_buys for the stock
         self.quote_polling.add_user_autobuy(user_id=user_id, stock_symbol=stock_symbol, transactionNum=transactionNum, command="SET_BUY_TRIGGER")
 
+        DebugType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, debugMessage="AUTO BUY trigger is set.")
+        
         # Notify user.
         ok_msg = f"[{transactionNum}] Successfully set an auto buy for {users_auto_buy.amount} stocks of {stock_symbol} at ${buy_trigger:.2f} per stock."
         print(ok_msg)
@@ -630,21 +661,31 @@ class CMDHandler:
             return err_msg
 
         # Check to see if the user has an auto buy for this stock.
-        users_account = Accounts.objects.get(pk=user_id)
-        users_auto_buy = None
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_buy', 'available').first()
         try:
             users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
         except DoesNotExist:
             # User hasn't set up and auto buy.
-            err_msg = f"[{transactionNum}] Error: Invalid command. No auto-buy setup for stock {stock_symbol}."
+            err_msg = f"[{transactionNum}] Error: (CancelSetBuy) Invalid command. No auto-buy setup for stock {stock_symbol}."
             print(err_msg)
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol, errorMessage=err_msg)
             return err_msg
 
         # Remove the auto buy. Add the reserved funds.
-        users_account.auto_buy.remove(users_auto_buy)
-        users_account.available = users_account.available + decimal.Decimal(users_auto_buy.amount * users_auto_buy.trigger)
-        users_account.save()
+        update = {
+            'inc__available': decimal.Decimal(users_auto_buy.amount * users_auto_buy.trigger),
+            'pull__auto_buy__symbol': stock_symbol
+        }
+        ret = Accounts.objects(pk=user_id).update(**update)
+
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (CancelSetBuy) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="CancelSetBuy", username=user_id, errorMessage=err_msg)
+            return err_msg
+
+        # Log
         DebugType().log(transactionNum=transactionNum, command="CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol, debugMessage="Auto BUY has been cancelled.")
 
         # Remove the user from the stock polling
