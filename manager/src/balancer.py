@@ -47,7 +47,7 @@ class Balancer():
                 print("Failed to connect to rabbitmq-backend")
                 time.sleep(2)
 
-    ''' Blocking function that connects to frontend and backend rabbit queue
+    ''' Connects to frontend and backend rabbit queue
     and then begins listening for incoming commands. 
     '''
     def run(self):
@@ -60,39 +60,32 @@ class Balancer():
         )
         self._cleanup_timer.start()
 
-        
-        while True:
-            if not self.command_queue.empty():
-                self.balance(self.command_queue.get())
-
-        print("End of balancer thread")
-
     def balance(self, message: str):
-        #print(f"Received message:{message}")
-
         routing_key = None
         command = parse_command(message)
 
-        with self.mutex:
-            for user in self.user_ids:
-                if user.user_id == command.uid:
-                    for worker in self.workers:
-                        if worker.container_id == user.assigned_worker:
-                            routing_key = worker.route_key
-                            worker.commands.append(command.number)
-                            break
-
-                    user.last_seen = time.time()
-                    break
-
-            if routing_key is None:
-                routing_key = self.assign_worker(command.uid, command.number)
-
         if command.command == "DUMPLOG":
+            while not self.all_workers_finished():
+                print("Waiting for all work to be finished before DUMPLOG can be performed...")
+                time.sleep(1)
             routing_key = "worker_queue_0"
             print("Sent DUMPLOG to worker_queue_0")
+        else:
+            with self.mutex:
+                for user in self.user_ids:
+                    if user.user_id == command.uid:
+                        for worker in self.workers:
+                            if worker.container_id == user.assigned_worker:
+                                routing_key = worker.route_key
+                                worker.commands.append(command.number)
+                                break
 
-        #print(f"Sent command from uid={command.uid} to worker={routing_key}")
+                        user.last_seen = time.time()
+                        break
+
+                if routing_key is None:
+                    routing_key = self.assign_worker(command.uid, command.number)
+
         try:
             self._channel.basic_publish(
                 exchange=self._exchange,
@@ -109,7 +102,6 @@ class Balancer():
                 properties=pika.BasicProperties()
             )
 
-        #print(f"Sent message to {routing_key}")
 
     ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
     def assign_worker(self, uid: str, number: int) -> str:
@@ -162,3 +154,10 @@ class Balancer():
         )
         self._cleanup_timer.start()
 
+    def all_workers_finished(self) -> bool:
+        with self.mutex:
+            for worker in self.workers:
+                for _ in worker.commands:
+                    return False
+
+        return True
