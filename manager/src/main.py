@@ -59,6 +59,8 @@ def main():
             name=server_name,
             detach=True,
             auto_remove=True,
+            extra_hosts={"quoteserver.seng.uvic.ca":"192.168.4.2"},
+            ports={"4444":"4444"},
             network="csc468-group3_custom_network",
             environment={
                 "ROUTE_KEY": route_key,

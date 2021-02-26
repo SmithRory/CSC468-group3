@@ -55,10 +55,6 @@ services:
       - mongodb
       - rabbitmq_backend
       - rabbitmq_confirm
-    ports:
-      - 4444:4444
-    extra_hosts:
-      - "quoteserver.seng.uvic.ca:192.168.4.2"
     
   rabbitmq_frontend:
     image: rabbitmq:3-management
