@@ -25,12 +25,8 @@ class Accounts(me.Document):
 
     def user_exists(self, user_id) -> bool:
         '''Checks if the user is in the database.'''
-        try:
-            user = Accounts.objects(__raw__={'_id': user_id}).only('_id').first()
-        except me.LookUpError:
-            return False
-        if user is None: return False
-        return True
+        if not Accounts.objects(__raw__={'_id': user_id}).only('user_id'): return False
+        else: return True
 
 # Test function.
 def get_users():
