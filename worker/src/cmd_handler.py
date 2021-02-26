@@ -257,8 +257,8 @@ class CMDHandler:
                 'inc__stocks__S__amount': users_buy['num_stocks'],
                 'inc__stocks__S__available': users_buy['num_stocks']
             }
-        
-        ret = Accounts.objects(pk=user_id, stocks__symbol=users_buy['stock']).update(**update)
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_buy['stock']).update_one(**update)
+
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (CommitBuy) Failed to update account {user_id}."
@@ -341,7 +341,7 @@ class CMDHandler:
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
             if users_stock.amount == 0: # Remove this stock since it's empty.
-                ret = Accounts.objects(pk=user_id).update(pull__stocks__symbol=stock_symbol)
+                ret = Accounts.objects(pk=user_id).update_one(pull__stocks__symbol=stock_symbol)
                 if ret != 1:
                     # Failed to update account.
                     err_msg = f"[{transactionNum}] Error: (Sell) Could not remove empty stock from account {user_id}."
@@ -370,7 +370,7 @@ class CMDHandler:
         self.uncommitted_sells.update(uncommitted_sell)
 
         # Set aside the needed number of stocks.
-        ret = Accounts.objects(pk=user_id, stocks__symbol=stock_symbol).update(inc__stocks__S__available=-decimal.Decimal(num_to_sell))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=stock_symbol).update_one(inc__stocks__S__available=-decimal.Decimal(num_to_sell))
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: Failed to update account {user_id}."
@@ -418,7 +418,7 @@ class CMDHandler:
             return
 
         # Free the reserved stocks.
-        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update_one(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (SellTimeout) Failed to free reserved stocks for {user_id}."
@@ -473,7 +473,7 @@ class CMDHandler:
             'inc__account': profit,
             'inc__available': profit
         }
-        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(**update)
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update_one(**update)
         # Check if the account updated.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (CommitSell) Failed to update account {user_id}."
@@ -519,7 +519,7 @@ class CMDHandler:
             return err_msg
 
         # Free the reserved stocks.
-        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update_one(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
         # Check if the update worked.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (CancelSell) Failed to update account {user_id}."
@@ -568,7 +568,7 @@ class CMDHandler:
                 'set__auto_buy__S__trigger': 0.00
             }
 
-        ret = Accounts.objects(pk=user_id, auto_buy__symbol=stock_symbol).update(**update)
+        ret = Accounts.objects(pk=user_id, auto_buy__symbol=stock_symbol).update_one(**update)
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (SetBuyAmount) Failed to update account {user_id}."
@@ -626,7 +626,7 @@ class CMDHandler:
             'inc__available': -decimal.Decimal(transaction_price)
         }
 
-        ret = Accounts.objects(pk=user_id, auto_buy__symbol=stock_symbol).update(**update)
+        ret = Accounts.objects(pk=user_id, auto_buy__symbol=stock_symbol).update_one(**update)
         # Check that the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (SetBuyTrigger) Failed to update account {user_id}."
@@ -676,7 +676,7 @@ class CMDHandler:
             'inc__available': decimal.Decimal(users_auto_buy.amount * users_auto_buy.trigger),
             'pull__auto_buy__symbol': stock_symbol
         }
-        ret = Accounts.objects(pk=user_id).update(**update)
+        ret = Accounts.objects(pk=user_id).update_one(**update)
 
         # Check the update succeeded.
         if ret != 1:
@@ -713,10 +713,8 @@ class CMDHandler:
             print(err_msg)
             return err_msg
 
-        users_account = Accounts.objects.get(pk=user_id)
-
         # Verify the user owns enough shares of the given stock.
-        users_stock = None
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('stocks').first()
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
         except DoesNotExist:
@@ -733,8 +731,14 @@ class CMDHandler:
             return err_msg
 
         # Decrement the number of available shares.
-        users_stock.available = users_stock.available - decimal.Decimal(sell_amount)
-        users_account.save()
+        ret = Accounts.objects(pk=user_id, stocks__symbol=stock_symbol).update_one(inc__stocks__S__available= -decimal.Decimal(sell_amount))
+
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (SetSellAmount) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, errorMessage=err_msg)
+            return err_msg
 
         # Add the auto sell to the dictionary until the SET_SELL_TRIGGER is received.
         pending_auto_sell = {(user_id,stock_symbol): {'sell_amount': sell_amount}}
@@ -772,32 +776,37 @@ class CMDHandler:
             return err_msg
 
         # Create the auto_sell
-        users_account = Accounts.objects.get(pk=user_id)
-        users_auto_sell = None
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell').first()
         try:
             # Check to see if one exists for this stock
             users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
         except DoesNotExist:
             # Create a new auto sell.
             new_auto_sell = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=pending_auto_sell['sell_amount'], trigger=sell_trigger)
-            users_account.auto_sell.append(new_auto_sell)
+            ret = Accounts.objects(pk=user_id).update_one(push__auto_sell=new_auto_sell)
         else:
             # Auto sell has already been setup for this stock.
             # Update the auto sell and adjust the amount of reserved stocks
-            prev_stock_amount = users_auto_sell.amount
+            update = {
+                'set__auto_sell__S__amount': pending_auto_sell['sell_amount'],
+                'set__auto_sell__S__trigger': sell_trigger,
+                'inc__stocks__S__available': users_auto_sell.amount - pending_auto_sell['sell_amount'] # add previous amount back and remove the new amount 
+            }  
+            ret = Accounts.objects(pk=user_id, auto_sell__symbol=stock_symbol, stocks__symbol=stock_symbol).update_one(**update)
 
-            users_auto_sell.amount = pending_auto_sell['sell_amount']
-            users_auto_sell.trigger = sell_trigger
-            DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, debugMessage="AUTO SELL trigger is set")
-
-            users_stocks = users_account.stocks.get(symbol=stock_symbol)
-            users_stocks.available = users_stocks.available + prev_stock_amount - users_auto_sell.amount
-
-        users_account.save()
+        # Check if the update worked.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (SetSellTrigger) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, errorMessage=err_msg)
+            return err_msg
 
         # Add user to the list of auto_sells for the stock
         self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol, transactionNum=transactionNum, command="SET_SELL_TRIGGER")
 
+        # Log
+        DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, debugMessage="AUTO SELL trigger is set")
+        
         # Notify the user
         ok_msg = f"[{transactionNum}] Successfully set an auto sell for ${pending_auto_sell['sell_amount']} stocks of {stock_symbol} when the price is at least ${sell_trigger:.2f} per stock."
         print(ok_msg)
@@ -819,9 +828,11 @@ class CMDHandler:
             print(err_msg)
             return err_msg
 
+        # Flag to check if this command is invalid (i.e. No SET_SELL_AMOUNT OR TRIGGER has been given for this stock)
         bad_cmd = True
-        reserved_amount = 0
-        users_account = Accounts.objects.get(pk=user_id)
+
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell').first()
+        update = {}
 
         # Check if just a SET_SELL_AMOUNT has been issued.
         pending_auto_sell = self.pending_sell_triggers.pop((user_id,stock_symbol), None)
@@ -838,8 +849,9 @@ class CMDHandler:
                 # No auto sell.
                 pass
             else:
-                # Remove the auto sell.
-                users_account.auto_sell.remove(users_auto_sell)
+                # Remove the auto sell (add this command to the update dictionary)
+                update['pull__auto_sell__symbol'] = stock_symbol
+
                 DebugType().log(transactionNum=transactionNum, command="CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol, debugMessage="AUTO SELL is removed for this user")
                 reserved_amount = users_auto_sell.amount
                 bad_cmd = False
@@ -852,9 +864,17 @@ class CMDHandler:
             return err_msg
 
         # Release the reserved stocks.
-        users_stocks = users_account.stocks.get(symbol=stock_symbol)
-        users_stocks.available = users_stocks.available + reserved_amount
-        users_account.save()
+        update['inc__stocks__S__available'] = reserved_amount
+
+        # Update the user's document
+        ret = Accounts.objects(pk=user_id, stocks__symbol=stock_symbol).update_one(**update)
+        
+        # Check if the update worked.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (CancelSetSell) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SET_SELL", username=user_id, errorMessage=err_msg)
+            return err_msg
 
         # Remove the user from the auto_sell list
         self.quote_polling.get_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
