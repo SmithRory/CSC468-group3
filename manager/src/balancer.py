@@ -1,5 +1,7 @@
+import threading
 from worker import UserIds
 from parser import Command, parse_command
+from publisher import Publisher
 from threading import Thread, Timer
 import time
 import os
@@ -21,39 +23,24 @@ class Balancer():
         self._USER_TIMEOUT = 40.0 # Seconds
 
         self._send_address = "rabbitmq-backend"
-        self._exchange = os.environ["BACKEND_EXCHANGE"]
-        self._connection = None
-        self._channel = None
-
-    def setup(self):
-        while True:
-            print("Attempting to connect to rabbitmq-backend")
-            try:
-                self._connection = pika.BlockingConnection(
-                    pika.ConnectionParameters(
-                        host=self._send_address,
-                        heartbeat=600,
-                        blocked_connection_timeout=300)
-                )
-                self._channel = self._connection.channel()
-                self._channel.exchange_declare(exchange=self._exchange)
-                self._channel.confirm_delivery()
-
-                print("Connected to rabbitmq-backend")
-                return
-
-            except pika.exceptions.AMQPChannelError as err:
-                print(f"Failed to connect to rabbitmq-backend with error {err}")
-                time.sleep(2)
-            except pika.exceptions.AMQPConnectionError:
-                print("Failed to connect to rabbitmq-backend")
-                time.sleep(2)
+        self.publish_queue = None
+        self.publisher = None
+        self.t_publisher = None
 
     ''' Connects to frontend and backend rabbit queue
     and then begins listening for incoming commands. 
     '''
     def run(self):
-        self.setup()
+        self.publish_queue = queue.Queue()
+
+        self.publisher = Publisher(
+            connection_param=self._send_address,
+            exchange_name=os.environ["BACKEND_EXCHANGE"],
+            publish_queue = self.publish_queue
+        )
+        self.t_publisher = threading.Thread(target=self.publisher.run)
+        self.t_publisher.start()
+
         self._cleanup_timer = Timer(
             self._CLEANUP_PERIOD,
             self.cleanup,
@@ -63,6 +50,8 @@ class Balancer():
         self._cleanup_timer.start()
 
     def balance(self, message: str):
+        start = time.time()
+
         self._total_commands_seen = self._total_commands_seen + 1
         routing_key = None
         command = parse_command(message)
@@ -70,7 +59,7 @@ class Balancer():
         if command.command == "DUMPLOG":
             while not self.all_workers_finished():
                 print("Waiting for all work to be finished before DUMPLOG can be performed...")
-                time.sleep(5)
+                time.sleep(2)
             routing_key = "worker_queue_0"
             print("Sent DUMPLOG to worker_queue_0")
         else:
@@ -89,20 +78,9 @@ class Balancer():
                 if routing_key is None:
                     routing_key = self.assign_worker(command.uid, command.number)
 
-        self.publish(message, routing_key)
+        self.publish_queue.put((routing_key, message))
 
-    def publish(self, message: str, routing_key: str):
-        try:
-            self._channel.basic_publish(
-                exchange=self._exchange,
-                routing_key=routing_key,
-                body=message,
-                properties=pika.BasicProperties(delivery_mode=1),
-                mandatory=True
-            )
-        except:
-            self.setup()
-            self.publish(message, routing_key)
+        print(f"balance() time taken: {time.time()-start}")
     
     ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
     def assign_worker(self, uid: str, number: int) -> str:
@@ -131,13 +109,6 @@ class Balancer():
 
         best_worker = random.choice(best_workers)
 
-        # for user in self.user_ids:
-        #     if user.user_id == uid:
-        #         user.last_seen = time.time()
-        #         user.assigned_worker = best_worker.container_id
-        #         best_worker.commands.append(number)
-        #         return best_worker.route_key
-
         print(f"Assigned worker {best_worker.container_id} to {uid}")
         self.user_ids.append(UserIds(
             user_id=uid,
@@ -157,12 +128,12 @@ class Balancer():
             for worker in self.workers:
                 worker_len = len(worker.commands)
                 total_length = total_length + worker_len
-                if worker_len > 0:
-                    print(worker)
+                # if worker_len > 0:
+                #     print(worker)
             if total_length > 0:
                 print(f"Total active commands: {total_length}")
-            print(f"Total commands seen: {self._total_commands_seen}")
-            print(f"Total active users: {len(self.user_ids)}")
+                print(f"Total commands seen: {self._total_commands_seen}")
+                print(f"Total active users: {len(self.user_ids)}")
 
             self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
 

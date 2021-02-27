@@ -32,7 +32,10 @@ def balancer_consume_thread(queue):
     consumer.run() 
 
 def confirms_thread(workers, mutex):
-    confirms = Confirms(workers=workers, mutex=mutex)
+    confirms = Confirms(
+        workers=workers,
+        mutex=mutex
+    )
     confirms.run()
 
 def main():
@@ -82,18 +85,24 @@ def main():
 
     mutex = Lock()
     balancer_queue = queue.Queue()
+
     t_balancer_consume = Thread(target=balancer_consume_thread, args=(balancer_queue,))
     t_confirms = Thread(target=confirms_thread, args=(workers, mutex))
     t_balancer_consume.start()
     t_confirms.start()
 
-    balancer = Balancer(workers=workers, queue=queue, mutex=mutex)
+    balancer = Balancer(
+        workers=workers,
+        queue=queue,
+        mutex=mutex
+    )
     balancer.run()
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
         if not balancer_queue.empty():
             balancer.balance(balancer_queue.get())
+        sys.stdout.flush()
         
     for worker in workers:
         worker_container = client.containers.get(worker.container_id)
