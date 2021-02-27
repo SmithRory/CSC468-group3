@@ -94,9 +94,6 @@ def main():
     while not EXIT_PROGRAM:
         if not balancer_queue.empty():
             balancer.balance(balancer_queue.get())
-
-        else:
-            time.sleep(1)
         
     for worker in workers:
         worker_container = client.containers.get(worker.container_id)

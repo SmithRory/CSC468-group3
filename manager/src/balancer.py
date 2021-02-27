@@ -17,8 +17,8 @@ class Balancer():
 
         self._cleanup_timer = None
         self._total_commands_seen = 0
-        self._CLEANUP_PERIOD = 15.0 # Seconds
-        self._USER_TIMEOUT = 10.0 # Seconds
+        self._CLEANUP_PERIOD = 20.0 # Seconds
+        self._USER_TIMEOUT = 40.0 # Seconds
 
         self._send_address = "rabbitmq-backend"
         self._exchange = os.environ["BACKEND_EXCHANGE"]
@@ -186,9 +186,14 @@ class Balancer():
 
     def users_per_worker(self) -> dict:
         num_per_worker = {}
+        for user in self.user_ids:
+            num_per_worker.update({
+                user.assigned_worker: num_per_worker.get(user.assigned_worker, 0) + 1
+            })
         
-        with self.mutex:
-            for user in self.user_ids:
-                num_per_worker[user.assigned_worker] = num_per_worker.get(user.assigned_worker, 0) + 1
+            for worker in self.workers:
+                num_per_worker.update({
+                    worker.container_id: num_per_worker.get(worker.container_id, 0)
+                })
 
         return num_per_worker
