@@ -31,6 +31,7 @@ Once the VM has been setup, workloads can be run.
 - `docker container logs <container name>` to get stdout of any container
 - `docker kill <container name>` to remove a container (helpful for killing workers spun up by the manager)
 - `sudo docker container stop $(sudo docker ps -a -q)`
+- `sudo docker cp <containerID>:/app/testLOG ./testLOG`
 
 ## MongoDB
 

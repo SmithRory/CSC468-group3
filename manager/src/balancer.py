@@ -5,6 +5,7 @@ import time
 import os
 import pika
 import queue
+import sys
 
 class Balancer():
     def __init__(self, workers, queue, mutex):
@@ -46,6 +47,11 @@ class Balancer():
                 print("Failed to connect to rabbitmq-backend")
                 time.sleep(2)
 
+    ''' Blocking function that connects to frontend and backend rabbit queue
+    and then begins listening for incoming commands. 
+    '''
+    def run(self):
+        self.setup()
         self._cleanup_timer = Timer(
             self._CLEANUP_PERIOD,
             self.cleanup,
@@ -54,11 +60,6 @@ class Balancer():
         )
         self._cleanup_timer.start()
 
-    ''' Blocking function that connects to frontend and backend rabbit queue
-    and then begins listening for incoming commands. 
-    '''
-    def run(self):
-        self.setup()
         
         while True:
             if not self.command_queue.empty():
@@ -87,13 +88,27 @@ class Balancer():
             if routing_key is None:
                 routing_key = self.assign_worker(command.uid, command.number)
 
-        print(f"Sent command from uid={command.uid} to worker={routing_key}")
-        self._channel.basic_publish(
-            exchange=self._exchange,
-            routing_key=routing_key,
-            body=message,
-            properties=pika.BasicProperties()
-        )
+        if command.command == "DUMPLOG":
+            routing_key = "worker_queue_0"
+            print("Sent DUMPLOG to worker_queue_0")
+
+        #print(f"Sent command from uid={command.uid} to worker={routing_key}")
+        try:
+            self._channel.basic_publish(
+                exchange=self._exchange,
+                routing_key=routing_key,
+                body=message,
+                properties=pika.BasicProperties()
+            )
+        except:
+            self.setup()
+            self._channel.basic_publish(
+                exchange=self._exchange,
+                routing_key=routing_key,
+                body=message,
+                properties=pika.BasicProperties()
+            )
+
         #print(f"Sent message to {routing_key}")
 
     ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
@@ -136,6 +151,8 @@ class Balancer():
                 pass
 
             self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
+
+        sys.stdout.flush()
 
         self._cleanup_timer = Timer(
             self._CLEANUP_PERIOD,

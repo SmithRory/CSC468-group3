@@ -241,7 +241,7 @@ class CMDHandler:
         # Complete the transaction.
         # Deduct the cost of the purchase. Note: the amount has already been deducted from the available funds.
         cost = decimal.Decimal(users_buy['num_stocks'] * users_buy['quote'])
-        user_account = Accounts.objects(pk=user_id).only('stocks', 'account')
+        user_account = Accounts.objects(pk=user_id).only('stocks', 'account').first()
         user_account.account = user_account.account - cost
         try:
             users_stock = user_account.stocks.get(symbol=users_buy['stock'])
@@ -257,7 +257,7 @@ class CMDHandler:
 
         # Notify the user.
         AccountTransactionType().log(transactionNum=transactionNum, action="remove", username=user_id, funds=cost)
-        ok_msg = f"[{transactionNum}] Successfully purchased stock."
+        ok_msg = f"[{transactionNum}] Successfully purchased {users_buy['num_stocks']} of stock {users_buy['stock']}."
         print(ok_msg)
         return ok_msg
 
@@ -331,7 +331,7 @@ class CMDHandler:
         try:
             users_stock = users_account.stocks.get(symbol=stock_symbol)
             if users_stock.amount == 0: # Remove this stock since it's empty.
-                ret = Accounts.objects.find(pk=user_id).update(pull__stocks__symbol=stock_symbol)
+                ret = Accounts.objects(pk=user_id).update(pull__stocks__symbol=stock_symbol)
                 if ret != 1:
                     print(f"[{transactionNum}] Error: (Sell) Could not remove empty stock from account {user_id}.")
         except DoesNotExist:
@@ -355,7 +355,7 @@ class CMDHandler:
         self.uncommitted_sells.update(uncommitted_sell)
 
         # Set aside the needed number of stocks.
-        ret = Accounts.objects.find(pk=user_id, stocks__symbol=stock_symbol).update(inc__stocks__S__available=-decimal.Decimal(num_to_sell))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=stock_symbol).update(inc__stocks__S__available=-decimal.Decimal(num_to_sell))
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: Failed to update account {user_id}."
@@ -403,7 +403,7 @@ class CMDHandler:
             return
 
         # Free the reserved stocks.
-        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (SellTimeout) Failed to free reserved stocks for {user_id}."
@@ -456,9 +456,9 @@ class CMDHandler:
         update = {
             'inc__stocks__S__amount': -users_sell['num_stocks'],
             'inc__account': profit,
-            'inc_available': profit
+            'inc__available': profit
         }
-        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(**update)
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(**update)
         # Check if the account updated.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (CommitSell) Failed to update account {user_id}."
@@ -504,7 +504,7 @@ class CMDHandler:
             return err_msg
 
         # Free the reserved stocks.
-        ret = Accounts.objects.find(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
+        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
         # Check if the update worked.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (CancelSell) Failed to update account {user_id}."
