@@ -21,7 +21,7 @@ Reddis will be implemented and replace this file.
 
 def add(stock_symbol, stock_price, quoteServerTime):
     r = redis.Redis(host='redishost')
-    r.sadd(stock_symbol, stock_price)
+    r.set(stock_symbol, stock_price)
     r.expire(stock_symbol, (quoteServerTime+1000))
 
 # param:
@@ -30,4 +30,7 @@ def add(stock_symbol, stock_price, quoteServerTime):
 #       stock_price : value of the stock
 def get(stock_symbol):
     r = redis.Redis(host='redishost')
-    return r.get(stock_symbol)
+    stock_price = r.get(stock_symbol)
+    if stock_price:
+        stock_price = float(stock_price)
+    return stock_price
