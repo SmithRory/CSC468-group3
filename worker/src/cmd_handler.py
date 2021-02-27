@@ -250,6 +250,7 @@ class CMDHandler:
                 'inc__account': -cost,
                 'push__stocks': new_stock
             }
+            ret = Accounts.objects(pk=user_id).update_one(**update)
         else:
             # Increment the existing stock. Deduct the cost of the stock.
             update = {
@@ -257,7 +258,7 @@ class CMDHandler:
                 'inc__stocks__S__amount': users_buy['num_stocks'],
                 'inc__stocks__S__available': users_buy['num_stocks']
             }
-        ret = Accounts.objects(pk=user_id, stocks__symbol=users_buy['stock']).update_one(**update)
+            ret = Accounts.objects(pk=user_id, stocks__symbol=users_buy['stock']).update_one(**update)
 
         # Check the update succeeded.
         if ret != 1:
@@ -559,16 +560,17 @@ class CMDHandler:
             # Create the auto_buy embedded document for this stock.
             new_auto_buy = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=buy_amount)
             update = {
-                'push__auto_buy':new_auto_buy
+                'push__auto_buy': new_auto_buy
             }
+            ret = Accounts.objects(pk=user_id).update_one(**update)
         else:
             # Update the auto buy amount, reset the buy trigger.
             update = {
                 'set__auto_buy__S__amount': buy_amount,
                 'set__auto_buy__S__trigger': 0.00
             }
+            ret = Accounts.objects(pk=user_id, auto_buy__symbol=stock_symbol).update_one(**update)
 
-        ret = Accounts.objects(pk=user_id, auto_buy__symbol=stock_symbol).update_one(**update)
         # Check the update succeeded.
         if ret != 1:
             err_msg = f"[{transactionNum}] Error: (SetBuyAmount) Failed to update account {user_id}."
