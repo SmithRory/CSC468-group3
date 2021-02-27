@@ -26,7 +26,6 @@ class Confirms():
         self._consumer.run()
 
     def on_receive(self, message):
-        sys.stdout.flush()
         number = re.findall(".*?\[(.*)].*", message)
         number = int(number[0])
 

@@ -191,9 +191,12 @@ class Balancer():
                 user.assigned_worker: num_per_worker.get(user.assigned_worker, 0) + 1
             })
         
-            for worker in self.workers:
-                num_per_worker.update({
-                    worker.container_id: num_per_worker.get(worker.container_id, 0)
-                })
+        for worker in self.workers:
+            num_per_worker.update({
+                worker.container_id: num_per_worker.get(worker.container_id, 0)
+            })
+
+        #for k, v in num_per_worker.items():
+            #print(f"{k}: {v}")
 
         return num_per_worker
