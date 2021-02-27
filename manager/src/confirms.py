@@ -29,6 +29,9 @@ class Confirms():
         number = re.findall(".*?\[(.*)].*", message)
         number = int(number[0])
 
+        print(message)
+        sys.stdout.flush()
+
         with self.mutex:
             for worker in self.workers:
                 if number in worker.commands:

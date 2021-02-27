@@ -102,7 +102,6 @@ def main():
     while not EXIT_PROGRAM:
         if not balancer_queue.empty():
             balancer.balance(balancer_queue.get())
-        sys.stdout.flush()
         
     for worker in workers:
         worker_container = client.containers.get(worker.container_id)
