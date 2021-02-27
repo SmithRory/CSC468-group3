@@ -9,3 +9,4 @@ pika==1.1.0
 xmlschema==1.1
 elementpath==1.4.0
 JsonToXML==0.0.2
+redis==3.5.3
