@@ -50,15 +50,12 @@ class Balancer():
         self._cleanup_timer.start()
 
     def balance(self, message: str):
-        start = time.time()
-
         self._total_commands_seen = self._total_commands_seen + 1
         routing_key = None
         command = parse_command(message)
 
         if command.command == "DUMPLOG":
             while not self.all_workers_finished():
-                print("Waiting for all work to be finished before DUMPLOG can be performed...")
                 time.sleep(2)
             routing_key = "worker_queue_0"
             print("Sent DUMPLOG to worker_queue_0")
@@ -79,8 +76,6 @@ class Balancer():
                     routing_key = self.assign_worker(command.uid, command.number)
 
         self.publish_queue.put((routing_key, message))
-
-        print(f"balance() time taken: {time.time()-start}")
     
     ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
     def assign_worker(self, uid: str, number: int) -> str:
@@ -128,8 +123,9 @@ class Balancer():
             for worker in self.workers:
                 worker_len = len(worker.commands)
                 total_length = total_length + worker_len
-                # if worker_len > 0:
-                #     print(worker)
+                if worker_len > 0:
+                    print(worker)
+            
             if total_length > 0:
                 print(f"Total active commands: {total_length}")
                 print(f"Total commands seen: {self._total_commands_seen}")

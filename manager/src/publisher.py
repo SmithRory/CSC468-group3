@@ -2,6 +2,7 @@ import pika
 import queue
 import time
 import functools
+import sys
 
 class Publisher():
     QUICK_SEND = 0.01
@@ -66,10 +67,11 @@ class Publisher():
         conf_message = self._deliveries.get(method_frame.method.delivery_tag)
         
         confirmation_type = method_frame.method.NAME.split('.')[1].lower()
-        print(f"Message {conf_message} with type {confirmation_type}")
         if confirmation_type == 'ack':
             self._acked += 1
         elif confirmation_type == 'nack':
+            print(f"Message {conf_message} with type {confirmation_type}")
+            sys.stdout.flush()
             self._nacked += 1
 
     def schedule_next_message(self, publish_interval):
