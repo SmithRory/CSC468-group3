@@ -72,24 +72,24 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
-    logging:
-      driver: "none"
+        #logging:
+        #driver: "none"
 
   rabbitmq_backend:
     image: rabbitmq:3-management
     container_name: rabbitmq-backend
     networks:
      - custom_network
-    logging:
-      driver: "none"
+       #logging:
+       #driver: "none"
 
   rabbitmq_confirm:
     image: rabbitmq:3-management
     container_name: rabbitmq-confirm
     networks:
      - custom_network
-    logging:
-      driver: "none"
+       #logging:
+       #driver: "none"
 
   mongodb:
     image: mongo

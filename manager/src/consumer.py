@@ -29,8 +29,6 @@ class Consumer():
         self._connection.ioloop.start()
 
     def connect(self):
-        print(f"{self._connection_param}: connect")
-        # amqp://guest:guest@localhost:15672/%2F
         self._connection = pika.SelectConnection(
             parameters=pika.ConnectionParameters(self._connection_param),
             on_open_callback=self.on_connection_open,
