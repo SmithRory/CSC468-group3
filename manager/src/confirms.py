@@ -29,10 +29,6 @@ class Confirms():
         number = re.findall(".*?\[(.*)].*", message)
         number = int(number[0])
 
-        if number < 0:
-            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Recv confirm {message} with id: {number}")
-            sys.stdout.flush()
-
         with self.mutex:
             for worker in self.workers:
                 if number in worker.commands:

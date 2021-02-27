@@ -68,7 +68,7 @@ class Consumer():
             queue=self._queue_name,
             arguments={"x-queue-mode": "lazy"},
             callback=cb
-            )
+        )
 
     def on_queue_declareok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_queue_declareok")

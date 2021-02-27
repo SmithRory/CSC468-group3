@@ -25,6 +25,7 @@ class Publisher:
                 )
                 self._channel = self._connection.channel()
                 self._channel.exchange_declare(exchange=self._exchange)
+                self._channel.confirm_delivery()
 
                 print("Connected to rabbitmq-confirm")
                 return
@@ -42,15 +43,11 @@ class Publisher:
                 exchange=self._exchange,
                 routing_key="confirm",
                 body=message,
-                properties=pika.BasicProperties(),
+                properties=pika.BasicProperties(delivery_mode=1),
                 mandatory=True
             )
+        #except pika.exceptions.UnroutableError:
         except:
             self.setup_communication()
-            self._channel.basic_publish(
-                exchange=self._exchange,
-                routing_key="confirm",
-                body=message,
-                properties=pika.BasicProperties()
-            )
+            self.send(message)
 

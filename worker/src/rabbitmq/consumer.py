@@ -63,7 +63,7 @@ class Consumer():
             queue=self._queue_name,
             arguments={"x-queue-mode": "lazy"},
             callback=cb
-            )
+        )
 
     def on_queue_declareok(self, _unused_frame, userdata):
         cb = functools.partial(self.on_bindok, userdata=self._queue_name)

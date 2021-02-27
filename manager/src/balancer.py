@@ -6,6 +6,7 @@ import os
 import pika
 import queue
 import sys
+import random
 
 class Balancer():
     def __init__(self, workers, queue, mutex):
@@ -15,6 +16,7 @@ class Balancer():
         self.mutex = mutex
 
         self._cleanup_timer = None
+        self._total_commands_seen = 0
         self._CLEANUP_PERIOD = 15.0 # Seconds
         self._USER_TIMEOUT = 10.0 # Seconds
 
@@ -24,8 +26,7 @@ class Balancer():
         self._channel = None
 
     def setup(self):
-        connected = False
-        while not connected:
+        while True:
             print("Attempting to connect to rabbitmq-backend")
             try:
                 self._connection = pika.BlockingConnection(
@@ -36,9 +37,10 @@ class Balancer():
                 )
                 self._channel = self._connection.channel()
                 self._channel.exchange_declare(exchange=self._exchange)
+                self._channel.confirm_delivery()
 
                 print("Connected to rabbitmq-backend")
-                connected = True
+                return
 
             except pika.exceptions.AMQPChannelError as err:
                 print(f"Failed to connect to rabbitmq-backend with error {err}")
@@ -61,6 +63,7 @@ class Balancer():
         self._cleanup_timer.start()
 
     def balance(self, message: str):
+        self._total_commands_seen = self._total_commands_seen + 1
         routing_key = None
         command = parse_command(message)
 
@@ -86,32 +89,35 @@ class Balancer():
                 if routing_key is None:
                     routing_key = self.assign_worker(command.uid, command.number)
 
+        self.publish(message, routing_key)
+
+    def publish(self, message: str, routing_key: str):
         try:
             self._channel.basic_publish(
                 exchange=self._exchange,
                 routing_key=routing_key,
                 body=message,
-                properties=pika.BasicProperties()
+                properties=pika.BasicProperties(delivery_mode=1),
+                mandatory=True
             )
         except:
             self.setup()
-            self._channel.basic_publish(
-                exchange=self._exchange,
-                routing_key=routing_key,
-                body=message,
-                properties=pika.BasicProperties()
-            )
-
-
+            self.publish(message, routing_key)
+    
     ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
     def assign_worker(self, uid: str, number: int) -> str:
         minimum = len(self.workers[0].commands)
-        best_worker = self.workers[0]
+        best_workers = [self.workers[0]]
 
         for worker in self.workers:
-            if (length := len(worker.commands)) < minimum:
-                minimum = length
-                best_worker = worker
+            if (length := len(worker.commands)) <= minimum:
+                if minimum == length:
+                    best_workers.append(worker)
+                else:
+                    minumum = length
+                    best_workers = [worker]
+
+        best_worker = random.choice(best_workers)
 
         for user in self.user_ids:
             if user.user_id == uid:
@@ -143,7 +149,7 @@ class Balancer():
                     print(worker)
             if total_length > 0:
                 print(f"Total active commands: {total_length}")
-
+            print(f"Total commands seen: {self._total_commands_seen}")
             print(f"Total active users: {len(self.user_ids)}")
 
             self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
