@@ -106,25 +106,37 @@ class Balancer():
     
     ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
     def assign_worker(self, uid: str, number: int) -> str:
+        # Get list of workers with min number of users assigned to them
+        min_workers = [self.workers[0]]
         minimum = len(self.workers[0].commands)
-        best_workers = [self.workers[0]]
-
+        num_per_worker = self.users_per_worker()
         for worker in self.workers:
+            if (length := num_per_worker.get(worker.container_id, 10000)) <= minimum:
+                if minimum == length:
+                    min_workers.append(worker)
+                else:
+                    minimum = length
+                    min_workers = [worker]
+
+        # Get worker with least amount of active commands from min_workers
+        minimum = len(min_workers[0].commands)
+        best_workers = [min_workers[0]]
+        for worker in min_workers:
             if (length := len(worker.commands)) <= minimum:
                 if minimum == length:
                     best_workers.append(worker)
                 else:
-                    minumum = length
+                    minimum = length
                     best_workers = [worker]
 
         best_worker = random.choice(best_workers)
 
-        for user in self.user_ids:
-            if user.user_id == uid:
-                user.last_seen = time.time()
-                user.assigned_worker = best_worker.container_id
-                best_worker.commands.append(number)
-                return best_worker.route_key
+        # for user in self.user_ids:
+        #     if user.user_id == uid:
+        #         user.last_seen = time.time()
+        #         user.assigned_worker = best_worker.container_id
+        #         best_worker.commands.append(number)
+        #         return best_worker.route_key
 
         print(f"Assigned worker {best_worker.container_id} to {uid}")
         self.user_ids.append(UserIds(
@@ -171,3 +183,12 @@ class Balancer():
                     return False
 
         return True
+
+    def users_per_worker(self) -> dict:
+        num_per_worker = {}
+        
+        with self.mutex:
+            for user in self.user_ids:
+                num_per_worker[user.assigned_worker] = num_per_worker.get(user.assigned_worker, 0) + 1
+
+        return num_per_worker
