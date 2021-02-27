@@ -54,7 +54,7 @@ def main():
         if not message_queue.empty():
             result = command_parse(message_queue.get())
             command_handler.handle_command(result[0], result[1], result[2])
-        sys.stdout.flush()
+        # sys.stdout.flush() # Uncomment to get docker logs from stdout.
 
     t_consumer.join()
 
