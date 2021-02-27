@@ -61,8 +61,8 @@ class Consumer():
         cb = functools.partial(self.on_queue_declareok, userdata=self._queue_name)
         self._channel.queue_declare(
             queue=self._queue_name,
+            arguments={"x-queue-mode": "lazy"},
             callback=cb
-            # exclusive=True
             )
 
     def on_queue_declareok(self, _unused_frame, userdata):

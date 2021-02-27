@@ -28,8 +28,10 @@ class Confirms():
     def on_receive(self, message):
         number = re.findall(".*?\[(.*)].*", message)
         number = int(number[0])
-        print(f"Recv confirm {message} with id: {number}")
-        sys.stdout.flush()
+
+        if number < 0:
+            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Recv confirm {message} with id: {number}")
+            sys.stdout.flush()
 
         with self.mutex:
             for worker in self.workers:

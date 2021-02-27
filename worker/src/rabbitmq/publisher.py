@@ -42,7 +42,8 @@ class Publisher:
                 exchange=self._exchange,
                 routing_key="confirm",
                 body=message,
-                properties=pika.BasicProperties()
+                properties=pika.BasicProperties(),
+                mandatory=True
             )
         except:
             self.setup_communication()

@@ -67,7 +67,7 @@ class Balancer():
         if command.command == "DUMPLOG":
             while not self.all_workers_finished():
                 print("Waiting for all work to be finished before DUMPLOG can be performed...")
-                time.sleep(1)
+                time.sleep(5)
             routing_key = "worker_queue_0"
             print("Sent DUMPLOG to worker_queue_0")
         else:
@@ -120,7 +120,6 @@ class Balancer():
                 best_worker.commands.append(number)
                 return best_worker.route_key
 
-        print(f"First contact with user {uid}")
         print(f"Assigned worker {best_worker.container_id} to {uid}")
         self.user_ids.append(UserIds(
             user_id=uid,
@@ -131,16 +130,21 @@ class Balancer():
         best_worker.commands.append(number)
         return best_worker.route_key
 
+    ''' Removes users from user_ids list if they havent been seen for USER_TIMEOUT.
+    Also prints current activity for all workers and users.
+    '''
     def cleanup(self):
         with self.mutex:
-            print("\n\n")
+            total_length = 0
             for worker in self.workers:
-                print(worker)
-                pass
+                worker_len = len(worker.commands)
+                total_length = total_length + worker_len
+                if worker_len > 0:
+                    print(worker)
+            if total_length > 0:
+                print(f"Total active commands: {total_length}")
 
-            for user in self.user_ids:
-                print(user)
-                pass
+            print(f"Total active users: {len(self.user_ids)}")
 
             self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
 

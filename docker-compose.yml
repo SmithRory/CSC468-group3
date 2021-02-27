@@ -29,6 +29,7 @@ services:
      - custom_network
     restart: always
     depends_on:
+      - worker
       - rabbitmq_backend
       - rabbitmq_frontend
       - rabbitmq_confirm
@@ -51,6 +52,10 @@ services:
     networks:
      - custom_network
     restart: always
+    ports:
+      - 4444:4444
+    extra_hosts:
+      - "quoteserver.seng.uvic.ca:192.168.4.2"
     depends_on:
       - mongodb
       - rabbitmq_backend
@@ -96,6 +101,8 @@ services:
     volumes:
      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
      - mongo-data:/data/db
+    logging:
+      driver: "none"
 
 volumes:
   mongo-data:
