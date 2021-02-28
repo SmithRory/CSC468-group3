@@ -31,7 +31,7 @@ class CMDHandler:
         self.pending_sell_triggers = {} # Holds pending auto sells until a sell trigger is given.
 
         # Quote polling for auto buy/sell.
-        self.POLLING_RATE = 1
+        self.POLLING_RATE = 120 # 120 seconds
         self.quote_polling = quote_polling.UserPollingStocks()
         self.polling_thread = quote_polling.QuotePollingThread(quote_polling = self.quote_polling, polling_rate = self.POLLING_RATE, response_publisher = response_publisher)
         self.polling_thread.setDaemon(True) # Will be cleaned up on exit.
@@ -160,6 +160,8 @@ class CMDHandler:
         # Add the uncommitted buy to the list.
         uncommitted_buy = {user_id: {'stock': stock_symbol, 'num_stocks': num_stocks, 'quote': value, 'amount': max_debt}}
         self.uncommitted_buys.update(uncommitted_buy)
+
+        #Add the uncommitted buy to redis cache hash map
         
         # Cancel any previous timers for this user. There can only be one pending buy at a time.
         previous_timer = self.uncommitted_buy_timers.pop(user_id, None)
