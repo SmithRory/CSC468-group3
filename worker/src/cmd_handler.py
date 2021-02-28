@@ -553,12 +553,20 @@ class CMDHandler:
 
         # Add the stock and amount to the user's auto_buy list
         users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_buy').first()
+
+        debug_msg = f"Users Account (pre-new_auto_buy): {users_account.to_json()}"
+        DebugType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, debugMessage=debug_msg)
+
         try:
             # Check if an auto buy already exists for this stock
             users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
         except DoesNotExist:
             # Create the auto_buy embedded document for this stock.
             new_auto_buy = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=buy_amount)
+
+            debug_msg = f"Inserting New Auto Buy: {new_auto_buy}"
+            DebugType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, debugMessage=debug_msg)
+
             update = {
                 'push__auto_buy': new_auto_buy
             }
@@ -779,12 +787,20 @@ class CMDHandler:
 
         # Create the auto_sell
         users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell').first()
+
+        debug_msg = f"Users Account (pre-new_auto_sell): {users_account.to_json()}"
+        DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, debugMessage=debug_msg)
+
         try:
             # Check to see if one exists for this stock
             users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
         except DoesNotExist:
             # Create a new auto sell.
             new_auto_sell = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=pending_auto_sell['sell_amount'], trigger=sell_trigger)
+            
+            debug_msg = f"Inserting New Auto Sell: {new_auto_sell}"
+            DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, debugMessage=debug_msg)
+            
             ret = Accounts.objects(pk=user_id).update_one(push__auto_sell=new_auto_sell)
         else:
             # Auto sell has already been setup for this stock.
