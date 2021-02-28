@@ -163,7 +163,7 @@ class QuotePollingThread(threading.Thread):
         DebugType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, debugMessage=info_msg)
 
         # Get the user document
-        user_account = Accounts.objects.get(__raw__={'_id': user_id}).only('auto_buy', 'available', 'account', 'stocks').first()
+        user_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_buy', 'available', 'account', 'stocks').first()
 
         users_auto_buy = user_account.auto_buy.get(symbol=stock_symbol)
         reserved_amount = users_auto_buy.amount * users_auto_buy.trigger
@@ -210,7 +210,7 @@ class QuotePollingThread(threading.Thread):
         DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, debugMessage=info_msg)
 
         # Get the user document
-        users_account = Accounts.objects.get(__raw__={'_id': user_id}).only('auto_sell', 'available', 'account', 'stocks').first()
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell', 'available', 'account', 'stocks').first()
 
         users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
         users_stock = users_account.stocks.get(symbol=stock_symbol)

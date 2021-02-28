@@ -104,7 +104,7 @@ class CMDHandler:
 
     # params: user_id, stock_symbol, amount
     def buy(self, transactionNum, params) -> str:
-
+        
         user_id = params[0]
         stock_symbol = params[1]
         max_debt = float(params[2]) # Maximum dollar amount of the transaction
