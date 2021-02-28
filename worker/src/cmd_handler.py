@@ -833,7 +833,12 @@ class CMDHandler:
         # Flag to check if this command is invalid (i.e. No SET_SELL_AMOUNT OR TRIGGER has been given for this stock)
         bad_cmd = True
 
-        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell').first()
+        print(f"In cancel_set_sell:\n\t user_id: {user_id}")
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell')
+        print(f"\tusers_account (.only): {users_account.to_json()}")
+        users_account = users_account.first()
+        print(f"\tusers_account (.first): {users_account.to_json()}")
+        
         update = {}
 
         # Check if just a SET_SELL_AMOUNT has been issued.
