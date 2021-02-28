@@ -31,11 +31,11 @@ class Publisher():
         )
 
     def on_connection_open_error(self, _unused_connection, err):
-        print('Connection open failed, reopening in 5 seconds: %s', err)
+        print(f'{self._connection_param} Connection open failed, reopening in 5 seconds: {err}')
         self._connection.ioloop.call_later(5, self._connection.ioloop.stop)
 
     def on_connection_closed(self, _unused_connection, reason):
-        print('Connection closed, reopening in 5 seconds: %s', reason)
+        print(f'{self._connection_param} Connection closed, reopening in 5 seconds: {reason}')
         self._connection.ioloop.call_later(5, self._connection.ioloop.stop)
 
     def on_connection_open(self, _unused_connection):

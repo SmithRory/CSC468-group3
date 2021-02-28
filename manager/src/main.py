@@ -102,7 +102,8 @@ def main():
     while not EXIT_PROGRAM:
         if not balancer_queue.empty():
             balancer.balance(balancer_queue.get())
-
+        else:
+            time.sleep(0.5)
         sys.stdout.flush()
         
     for worker in workers:

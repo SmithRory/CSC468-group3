@@ -55,6 +55,7 @@ def main():
             result = command_parse(message_queue.get())
             command_handler.handle_command(result[0], result[1], result[2])
         else:
+            time.sleep(0.5)
             sys.stdout.flush()
 
     t_consumer.join()

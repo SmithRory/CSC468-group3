@@ -64,6 +64,7 @@ services:
   rabbitmq_frontend:
     image: rabbitmq:3-management
     container_name: rabbitmq-frontend
+    restart: unless-stopped
     networks:
      - custom_network
     # environment:
@@ -72,24 +73,26 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
-        #logging:
-        #driver: "none"
+    #logging:
+    #driver: "none"
 
   rabbitmq_backend:
     image: rabbitmq:3-management
     container_name: rabbitmq-backend
+    restart: unless-stopped
     networks:
      - custom_network
-       #logging:
-       #driver: "none"
+    #logging:
+    #driver: "none"
 
   rabbitmq_confirm:
     image: rabbitmq:3-management
     container_name: rabbitmq-confirm
+    restart: unless-stopped
     networks:
      - custom_network
-       #logging:
-       #driver: "none"
+    #logging:
+    #driver: "none"
 
   mongodb:
     image: mongo

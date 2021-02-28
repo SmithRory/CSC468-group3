@@ -13,6 +13,7 @@ class Consumer():
     def __init__(self, connection_param, exchange_name, queue_name, routing_key, command_queue=None, call_on_callback=None):
         self._connection = None
         self._channel = None
+        self._stopping = False
         self._commands = command_queue
         self._connection_param = connection_param
         self._exchange_name = exchange_name
@@ -25,11 +26,17 @@ class Consumer():
     should block for the entirety of the runtime.
     '''
     def run(self):
-        self.connect()
-        self._connection.ioloop.start()
+        while not self._stopping:
+            try:
+                self._connection = self.connect()
+                self._connection.ioloop.start()
+            except KeyboardInterrupt:
+                self.stop()
+                if (self._connection is not None and not self._connection.is_closed):
+                    self._connection.ioloop.start()
 
     def connect(self):
-        self._connection = pika.SelectConnection(
+        return pika.SelectConnection(
             parameters=pika.ConnectionParameters(self._connection_param),
             on_open_callback=self.on_connection_open,
             on_open_error_callback=self.on_connection_open_error,
@@ -37,16 +44,12 @@ class Consumer():
         )
 
     def on_connection_open_error(self, _unused_connection, err):
-        print(f"{self._connection_param}: on_connection_open_error")
-        self._connection.ioloop.stop()
-        time.sleep(2)
-        self.run()
+        print(f'{self._connection_param} Connection open failed, reopening in 5 seconds: {err}')
+        self._connection.ioloop.call_later(5, self._connection.ioloop.stop)
 
     def on_connection_closed(self, _unused_connection, reason):
-        print(f"{self._connection_param}: on_connection_closed")
-        self._connection.ioloop.stop()
-        time.sleep(2)
-        self.run()
+        print(f'{self._connection_param} Connection closed, reopening in 5 seconds: {reason}')
+        self._connection.ioloop.call_later(5, self._connection.ioloop.stop)
 
     def on_connection_open(self, _unused_connection):
         print(f"{self._connection_param}: on_connection_open")
@@ -99,3 +102,17 @@ class Consumer():
             self._commands.put(data)
         if self._call_on_callback is not None:
             self._call_on_callback(data)
+    
+    def stop(self):
+        self._stopping = True
+        self.close_channel()
+        self.close_connection()
+
+    def close_channel(self):
+        if self._channel is not None:
+            self._channel.close()
+
+    def close_connection(self):
+        if self._connection is not None:
+            self._connection.close()
+

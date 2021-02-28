@@ -21,6 +21,7 @@ class Balancer():
         self._total_commands_seen = 0
         self._CLEANUP_PERIOD = 20.0 # Seconds
         self._USER_TIMEOUT = 40.0 # Seconds
+        self._prev_active_commands = 0
 
         self._send_address = "rabbitmq-backend"
         self.publish_queue = None
@@ -128,8 +129,11 @@ class Balancer():
             
             if total_length > 0:
                 print(f"Total active commands: {total_length}")
-                print(f"Total commands seen: {self._total_commands_seen}")
-                print(f"Total active users: {len(self.user_ids)}")
+            print(f"TPS: {(self._prev_active_commands-total_length)/self._CLEANUP_PERIOD}")
+            print(f"Total commands seen: {self._total_commands_seen}")
+            print(f"Total active users: {len(self.user_ids)}")
+
+            self._prev_active_commands = total_length
 
             self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
 
