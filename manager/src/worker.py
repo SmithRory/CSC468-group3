@@ -7,7 +7,9 @@ class Worker:
     route_key: str
 
     def __repr__(self) -> str:
-        return f"Worker(container_id={self.container_id}, commands={self.commands}, route_key={self.route_key}"
+        if len(self.commands) <= 10:
+            return f"Worker(container_id={self.container_id}, commands={self.commands}, route_key={self.route_key}"
+        return f"Worker(container_id={self.container_id}, len(commands)={len(self.commands)}, route_key={self.route_key}"
 
 @dataclass
 class UserIds:

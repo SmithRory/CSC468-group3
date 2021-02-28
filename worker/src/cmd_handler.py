@@ -30,7 +30,7 @@ class CMDHandler:
         self.pending_sell_triggers = {} # Holds pending auto sells until a sell trigger is given.
 
         # Quote polling for auto buy/sell.
-        self.POLLING_RATE = 1
+        self.POLLING_RATE = 120 # 120 seconds
         self.quote_polling = quote_polling.UserPollingStocks()
         self.polling_thread = quote_polling.QuotePollingThread(quote_polling = self.quote_polling, polling_rate = self.POLLING_RATE, response_publisher = response_publisher)
         self.polling_thread.setDaemon(True) # Will be cleaned up on exit.
