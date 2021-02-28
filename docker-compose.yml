@@ -30,11 +30,12 @@ services:
     networks:
      - custom_network
     restart: always
-#    depends_on:
-#      - rabbitmq_backend
-#      - rabbitmq_frontend
-#      - rabbitmq_confirm
-    environment:
+    depends_on:
+      - worker
+      - rabbitmq_backend
+      - rabbitmq_frontend
+      - rabbitmq_confirm
+    environment: 
       - NUM_WORKERS=${NUM_WORKERS}
       - FRONTEND_EXCHANGE=${FRONTEND_EXCHANGE}
       - BACKEND_EXCHANGE=${BACKEND_EXCHANGE}
@@ -53,18 +54,19 @@ services:
     networks:
      - custom_network
     restart: always
-    depends_on:
-      - mongodb
-      - rabbitmq_backend
-      - rabbitmq_confirm
     ports:
       - 4444:4444
     extra_hosts:
       - "quoteserver.seng.uvic.ca:192.168.4.2"
-
+    depends_on:
+      - mongodb
+      - rabbitmq_backend
+      - rabbitmq_confirm
+    
   rabbitmq_frontend:
     image: rabbitmq:3-management
     container_name: rabbitmq-frontend
+    restart: unless-stopped
     networks:
      - custom_network
     # environment:
@@ -73,18 +75,26 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
+    #logging:
+    #driver: "none"
 
   rabbitmq_backend:
     image: rabbitmq:3-management
     container_name: rabbitmq-backend
+    restart: unless-stopped
     networks:
      - custom_network
+    #logging:
+    #driver: "none"
 
   rabbitmq_confirm:
     image: rabbitmq:3-management
     container_name: rabbitmq-confirm
+    restart: unless-stopped
     networks:
      - custom_network
+    #logging:
+    #driver: "none"
 
   mongodb:
     image: mongo
@@ -102,6 +112,8 @@ services:
     volumes:
      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
      - mongo-data:/data/db
+    logging:
+      driver: "none"
 
   redishost:
     image: redis

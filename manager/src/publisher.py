@@ -1,33 +1,10 @@
-import sys
-import os
 import pika
 import queue
 import time
 import functools
-import threading
+import sys
 
-class Publisher:
-    def __init__(self):
-        self._send_address = "rabbitmq-confirm"
-        self.publish_queue = None
-        self.publisher = None
-        self.t_publisher = None
-
-    def setup_communication(self):
-        self.publish_queue = queue.Queue()
-
-        self.publisher = RabbitPublisher(
-            connection_param=self._send_address,
-            exchange_name=os.environ["CONFIRMS_EXCHANGE"],
-            publish_queue = self.publish_queue
-        )
-        self.t_publisher = threading.Thread(target=self.publisher.run)
-        self.t_publisher.start()
-
-    def send(self, message: str):
-        self.publish_queue.put(("confirm", message))
-
-class RabbitPublisher():
+class Publisher():
     QUICK_SEND = 0.01
     SLOW_SEND = 1.0
 
@@ -54,11 +31,11 @@ class RabbitPublisher():
         )
 
     def on_connection_open_error(self, _unused_connection, err):
-        print('Connection open failed, reopening in 5 seconds: %s', err)
+        print(f'{self._connection_param} Connection open failed, reopening in 5 seconds: {err}')
         self._connection.ioloop.call_later(5, self._connection.ioloop.stop)
 
     def on_connection_closed(self, _unused_connection, reason):
-        print('Connection closed, reopening in 5 seconds: %s', reason)
+        print(f'{self._connection_param} Connection closed, reopening in 5 seconds: {reason}')
         self._connection.ioloop.call_later(5, self._connection.ioloop.stop)
 
     def on_connection_open(self, _unused_connection):
