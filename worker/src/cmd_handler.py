@@ -553,12 +553,26 @@ class CMDHandler:
 
         # Add the stock and amount to the user's auto_buy list
         users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_buy').first()
+
+        DebugType().log(transactionNum=transactionNum,
+                        command="SET_BUY_AMOUNT",
+                        username=user_id,
+                        stockSymbol=stock_symbol,
+                        debugMessage=f"Users Account (pre-new_auto_buy): {users_account.to_json()}")
+
         try:
             # Check if an auto buy already exists for this stock
             users_auto_buy = users_account.auto_buy.get(symbol=stock_symbol)
         except DoesNotExist:
             # Create the auto_buy embedded document for this stock.
             new_auto_buy = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=buy_amount)
+
+            DebugType().log(transactionNum=transactionNum, 
+                            command="SET_BUY_AMOUNT", 
+                            username=user_id, 
+                            stockSymbol=stock_symbol, 
+                            debugMessage=f"Inserting New Auto Buy: {new_auto_buy.to_json()}")
+
             update = {
                 'push__auto_buy': new_auto_buy
             }
@@ -638,11 +652,10 @@ class CMDHandler:
         
         # Add the user to the list of auto_buys for the stock
         self.quote_polling.add_user_autobuy(user_id=user_id, stock_symbol=stock_symbol, transactionNum=transactionNum, command="SET_BUY_TRIGGER")
-
-        DebugType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, debugMessage="AUTO BUY trigger is set.")
         
         # Notify user.
         ok_msg = f"[{transactionNum}] Successfully set an auto buy for {users_auto_buy.amount} stocks of {stock_symbol} at ${buy_trigger:.2f} per stock."
+        DebugType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, debugMessage=ok_msg)
         print(ok_msg)
         return ok_msg
 
@@ -745,11 +758,11 @@ class CMDHandler:
         # Add the auto sell to the dictionary until the SET_SELL_TRIGGER is received.
         pending_auto_sell = {(user_id,stock_symbol): {'sell_amount': sell_amount}}
         self.pending_sell_triggers.update(pending_auto_sell)
-        DebugType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage="AUTO SELL amount is now set, trigger reset as needed")
 
         # Notify the user.
         ok_msg = f"[{transactionNum}] Successfully set to sell {sell_amount} stocks of {stock_symbol} automatically. Please issue SET_SELL_TRIGGER to set the trigger price."
         print(ok_msg)
+        DebugType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage=ok_msg)
         return ok_msg
 
     # params: user_id, stock_symbol, amount
@@ -779,12 +792,20 @@ class CMDHandler:
 
         # Create the auto_sell
         users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell').first()
+
+        debug_msg = f"Users Account (pre-new_auto_sell): {users_account.to_json()}"
+        DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, debugMessage=debug_msg)
+
         try:
             # Check to see if one exists for this stock
             users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
         except DoesNotExist:
             # Create a new auto sell.
             new_auto_sell = AutoTransaction(user_id=user_id, symbol=stock_symbol, amount=pending_auto_sell['sell_amount'], trigger=sell_trigger)
+            
+            debug_msg = f"Inserting New Auto Sell: {new_auto_sell.to_json()}"
+            DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, debugMessage=debug_msg)
+            
             ret = Accounts.objects(pk=user_id).update_one(push__auto_sell=new_auto_sell)
         else:
             # Auto sell has already been setup for this stock.
@@ -805,12 +826,10 @@ class CMDHandler:
 
         # Add user to the list of auto_sells for the stock
         self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol, transactionNum=transactionNum, command="SET_SELL_TRIGGER")
-
-        # Log
-        DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, debugMessage="AUTO SELL trigger is set")
         
         # Notify the user
         ok_msg = f"[{transactionNum}] Successfully set an auto sell for ${pending_auto_sell['sell_amount']} stocks of {stock_symbol} when the price is at least ${sell_trigger:.2f} per stock."
+        DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, debugMessage=ok_msg)
         print(ok_msg)
         return ok_msg
 
@@ -833,7 +852,12 @@ class CMDHandler:
         # Flag to check if this command is invalid (i.e. No SET_SELL_AMOUNT OR TRIGGER has been given for this stock)
         bad_cmd = True
 
-        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell').first()
+        print(f"In cancel_set_sell:\n\t user_id: {user_id}")
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell')
+        print(f"\tusers_account (.only): {users_account.to_json()}")
+        users_account = users_account.first()
+        print(f"\tusers_account (.first): {users_account.to_json()}")
+        
         update = {}
 
         # Check if just a SET_SELL_AMOUNT has been issued.
