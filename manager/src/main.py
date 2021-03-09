@@ -100,10 +100,8 @@ def main():
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
-        if not balancer_queue.empty():
-            balancer.balance(balancer_queue.get())
-        else:
-            time.sleep(0.5)
+        command = balancer_queue.get() # Blocking 
+        balancer.balance(command)
         sys.stdout.flush()
         
     for worker in workers:

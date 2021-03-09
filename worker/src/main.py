@@ -18,7 +18,6 @@ from rabbitmq.publisher import Publisher
 from legacy.parser import command_parse
 from cmd_handler import CMDHandler
 
-
 # Handles exiting when SIGTERM (sent by ^C input) is received
 # in a gracefull way. Main loop will only exit after a completed iteration
 # so that every service can shut down properly.
@@ -51,12 +50,10 @@ def main():
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
-        if not message_queue.empty():
-            result = command_parse(message_queue.get())
-            command_handler.handle_command(result[0], result[1], result[2])
-        else:
-            time.sleep(0.5)
-            sys.stdout.flush()
+        command = message_queue.get() # Blocking
+        result = command_parse(command)
+        command_handler.handle_command(result[0], result[1], result[2])
+        sys.stdout.flush()
 
     t_consumer.join()
 
