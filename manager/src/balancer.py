@@ -83,7 +83,7 @@ class Balancer():
         # print(f"TPS: {(self._prev_active_commands-self.runtime_data.active_commands)/self._PRINT_PERIOD}")
         # print(f"Total commands seen: {self._total_commands_seen}")
 
-        print("Active: {:>10} | Total: {:>10} | TPS: {:>5} |".format(
+        print("Active: {:>10} | Total: {:>10} | TPS: {:>10} |".format(
             self.runtime_data.active_commands, 
             self._total_commands_seen,
             (self._prev_active_commands-self.runtime_data.active_commands)/self._PRINT_PERIOD)
