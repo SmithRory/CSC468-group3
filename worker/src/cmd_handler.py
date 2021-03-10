@@ -85,6 +85,7 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol
     def quote(self, transactionNum, params) -> str:
 
@@ -106,6 +107,7 @@ class CMDHandler:
         ok_msg = f"[{transactionNum}] {stock_symbol} has value ${value:.2f}."
         print(ok_msg)
         return ok_msg
+
 
     # params: user_id, stock_symbol, amount
     def buy(self, transactionNum, params) -> str:
@@ -167,7 +169,7 @@ class CMDHandler:
             DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, debugMessage="Previous BUY timer cancelled for this user.")
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.buy_timeout_handler, [transactionNum, user_id]) # 60 seconds
+        commit_timer = Timer(60.0, self.cancel_buy, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_buy_timers.update({user_id: commit_timer})
         DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, debugMessage="New BUY timer started for the user.")
@@ -177,42 +179,6 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
-    # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
-    def buy_timeout_handler(self, transactionNum, user_id):
-
-        DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, debugMessage="BUY command has timed out.")
-
-        # Remove the timer
-        timer = self.uncommitted_buy_timers.pop(user_id, None)
-        if timer is not None:
-            timer.cancel()
-            DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, debugMessage="BUY command has timed out")
-        
-        # Remove the pending buy
-        users_buy = self.uncommitted_buys.pop(user_id, None)
-        if users_buy is None:
-            # Something weird has happened. A buy should not timeout when there is no uncommitted buy command.
-            err_msg = f"[{transactionNum}] Error: BUY command has timed out for user {user_id}, but no uncommitted buy was found."
-            ErrorEventType(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage=err_msg)
-            self.send_response(err_msg)
-            return
-
-        # Free the reserved funds.
-        ret = Accounts.objects(pk=user_id).update_one(inc__available=decimal.Decimal(users_buy['num_stocks'] * users_buy['quote']))
-
-        # Check the update succeeded.
-        if ret != 1:
-            err_msg = f"[{transactionNum}] Error: Failed to update account {user_id}."
-            print(err_msg)
-            ErrorEventType().log(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage=err_msg)
-            self.send_response(err_msg)
-            return
-        
-        # Re-issue the buy command.
-        self.buy(transactionNum=transactionNum, params=[user_id, users_buy['stock'], users_buy['amount']])
-        response_msg = f"[{transactionNum}] BUY command has timed out and will be re-issued."
-        DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, debugMessage=response_msg)
-        self.send_response(response_msg)
 
     # params: user_id
     def commit_buy(self, transactionNum, params) -> str:
@@ -278,6 +244,7 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
+
     # params: transactionNum, user_id
     def cancel_buy(self, transactionNum, params) -> str:
         
@@ -321,6 +288,7 @@ class CMDHandler:
         ok_msg = f"[{transactionNum}] Successfully cancelled stock purchase."
         print(ok_msg)
         return ok_msg
+
 
     # params: user_id, stock_symbol, amount
     def sell(self, transactionNum, params) -> str:
@@ -391,7 +359,7 @@ class CMDHandler:
             DebugType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage="Previous SELL timer cancelled for this user")
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.sell_timeout_handler, [transactionNum, user_id]) # 60 seconds
+        commit_timer = Timer(60.0, self.cancel_sell, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_sell_timers.update({user_id: commit_timer})
         DebugType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage="New SELL timer started for this user")
@@ -404,43 +372,6 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
-    # Gets called when a SELL command has timed out (no COMMIT or CANCEL).
-    def sell_timeout_handler(self, transactionNum, user_id):
-
-        # Remove the timer.
-        timer = self.uncommitted_sell_timers.pop(user_id, None)
-        if timer is not None:
-            timer.cancel()
-            DebugType().log(transactionNum=transactionNum, command="SELL", username=user_id, debugMessage="SELL command has timed out")
-
-        # Remove the pending sell.
-        users_sell = self.uncommitted_sells.pop(user_id, None)
-        if users_sell is None:
-            # Something weird has happened. A buy should not timeout when there is no uncommitted buy command.
-            err_msg = f"[{transactionNum}] Error: SELL command has timed out for user {user_id}, but no uncommitted sell was found."
-            ErrorEventType(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage=err_msg)
-            print(err_msg)
-            self.send_response(err_msg)
-            return
-
-        # Free the reserved stocks.
-        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update_one(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
-        # Check the update succeeded.
-        if ret != 1:
-            err_msg = f"[{transactionNum}] Error: (SellTimeout) Failed to free reserved stocks for {user_id}."
-            print(err_msg)
-            ErrorEventType().log(transactionNum=transactionNum, command="SELL", username=user_id, errorMessage=err_msg)
-            self.send_response(err_msg)
-            return
-
-        # Notify the user their SELL has expired.
-        ok_msg = f"[{transactionNum}] The SELL command has expired and will be re-issued."
-        print(ok_msg)
-        self.send_response(ok_msg)
-
-        # Re-issue the SELL command.
-        self.sell(transactionNum = transactionNum, params = [user_id, users_sell['stock'], users_sell['amount']])
-        DebugType().log(transactionNum=transactionNum, command="SELL", username=user_id, debugMessage=ok_msg)
 
     # params: user_id
     def commit_sell(self, transactionNum, params) -> str:
@@ -494,6 +425,7 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
+
     # params: user_id
     def cancel_sell(self, transactionNum, params) -> str:
 
@@ -538,6 +470,7 @@ class CMDHandler:
         print(ok_msg)
         DebugType().log(transactionNum=transactionNum, command="CANCEL_SELL", username=user_id, debugMessage=ok_msg)
         return ok_msg
+
 
     # params: user_id, stock_symbol, amount
     def set_buy_amount(self, transactionNum, params) -> str:
@@ -604,6 +537,7 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol, amount
     def set_buy_trigger(self, transactionNum, params) -> str:
 
@@ -664,6 +598,7 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol
     def cancel_set_buy(self, transactionNum, params) -> str:
 
@@ -715,6 +650,7 @@ class CMDHandler:
         ok_msg = f"[{transactionNum}] Successfully cancelled the auto buy for stock {stock_symbol}."
         print(ok_msg)
         return ok_msg
+
 
     # params: user_id, stock_symbol, amount
     def set_sell_amount(self, transactionNum, params) -> str:
@@ -769,6 +705,7 @@ class CMDHandler:
         print(ok_msg)
         DebugType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage=ok_msg)
         return ok_msg
+
 
     # params: user_id, stock_symbol, amount
     def set_sell_trigger(self, transactionNum, params) -> str:
@@ -837,6 +774,7 @@ class CMDHandler:
         DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, debugMessage=ok_msg)
         print(ok_msg)
         return ok_msg
+
 
     # params: user_id, stock_symbol
     def cancel_set_sell(self, transactionNum, params) -> str:
@@ -915,6 +853,7 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
+
     # params: filename, user_id(optional)
     def dumplog(self, transactionNum, params) -> str:
 
@@ -929,6 +868,7 @@ class CMDHandler:
         ok_msg = f"[{transactionNum}] Successfully wrote logs to {filename}."
         print(ok_msg)
         return ok_msg
+
 
     # params: user_id
     def display_summary(self, transactionNum, params) -> str:
@@ -951,11 +891,13 @@ class CMDHandler:
         print(ok_msg)
         return ok_msg
 
+
     def unknown_cmd(self, transactionNum, cmd) -> str:
         err_msg = f"[{transactionNum}] Error: Unknown Command. {cmd}"
         ErrorEventType().log(transactionNum=transactionNum, command="UNKNOWN_COMMAND", errorMessage=err_msg)
         print(err_msg)
         return err_msg
+
 
     def send_response(self, response_msg: str):
         '''
@@ -964,6 +906,7 @@ class CMDHandler:
         Ex. When a BUY times out, this needs to be sent to the manager.
         '''
         self.response_publisher.send(response_msg)
+
 
     def handle_command(self, transactionNum, cmd, params):
         
