@@ -42,7 +42,7 @@ def main():
     publisher = Publisher()
     publisher.setup_communication()
 
-    message_queue = queue.Queue()
+    message_queue = queue.SimpleQueue()
     command_handler = CMDHandler(response_publisher=publisher)
 
     t_consumer = Thread(target=queue_thread, args=(message_queue,))

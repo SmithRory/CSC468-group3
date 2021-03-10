@@ -16,11 +16,11 @@ class Balancer():
         self.command_queue = queue
         self.mutex = mutex
 
-        self._cleanup_timer = None
+        self._print_status_timer = None
         self._total_commands_seen = 0
         self.runtime_data = runtime_data
         self._prev_active_commands = 0
-        self._CLEANUP_PERIOD = 5.0 # Seconds
+        self._PRINT_PERIOD = 5.0 # Seconds
 
         self._send_address = "rabbitmq"
         self.publish_queue = None
@@ -31,7 +31,7 @@ class Balancer():
     and then begins listening for incoming commands. 
     '''
     def run(self):
-        self.publish_queue = queue.Queue()
+        self.publish_queue = queue.SimpleQueue()
 
         self.publisher = Publisher(
             connection_param=self._send_address,
@@ -41,13 +41,13 @@ class Balancer():
         self.t_publisher = threading.Thread(target=self.publisher.run)
         self.t_publisher.start()
 
-        self._cleanup_timer = Timer(
-            self._CLEANUP_PERIOD,
-            self.cleanup,
+        self._print_status_timer = Timer(
+            self._PRINT_PERIOD,
+            self.print_status,
             args=None,
             kwargs=None
         )
-        self._cleanup_timer.start()
+        self._print_status_timer.start()
 
     def balance(self, message: str):
         self._total_commands_seen = self._total_commands_seen + 1
@@ -71,7 +71,7 @@ class Balancer():
     ''' Removes users from user_ids list if they havent been seen for USER_TIMEOUT.
     Also prints current activity for all workers and users.
     '''
-    def cleanup(self):
+    def print_status(self):
         # total_length = 0
         # for worker in self.workers:
         #     worker_len = len(worker.commands)
@@ -80,26 +80,26 @@ class Balancer():
         #         print(worker)
         
         # print(f"Total active commands: {self.runtime_data.active_commands}")
-        # print(f"TPS: {(self._prev_active_commands-self.runtime_data.active_commands)/self._CLEANUP_PERIOD}")
+        # print(f"TPS: {(self._prev_active_commands-self.runtime_data.active_commands)/self._PRINT_PERIOD}")
         # print(f"Total commands seen: {self._total_commands_seen}")
 
-        print("Active: {:>10} | Total: {:>10} | TPS: {:>5}".format(
+        print("Active: {:>10} | Total: {:>10} | TPS: {:>5} |".format(
             self.runtime_data.active_commands, 
-            self._total_commands_seen),
-            (self._prev_active_commands-self.runtime_data.active_commands)/self._CLEANUP_PERIOD
+            self._total_commands_seen,
+            (self._prev_active_commands-self.runtime_data.active_commands)/self._PRINT_PERIOD)
         )
 
         self._prev_active_commands = self.runtime_data.active_commands
 
         sys.stdout.flush()
 
-        self._cleanup_timer = Timer(
-            self._CLEANUP_PERIOD,
-            self.cleanup,
+        self._print_status_timer = Timer(
+            self._PRINT_PERIOD,
+            self.print_status,
             args=None,
             kwargs=None
         )
-        self._cleanup_timer.start()
+        self._print_status_timer.start()
 
     def all_workers_finished(self) -> bool:
         with self.mutex:

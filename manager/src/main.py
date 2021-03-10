@@ -86,7 +86,7 @@ def main():
         ))
 
     mutex = Lock()
-    balancer_queue = queue.Queue()
+    balancer_queue = queue.SimpleQueue()
     runtime_data = RuntimeData(
         active_commands=0
     )

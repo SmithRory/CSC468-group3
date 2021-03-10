@@ -6,7 +6,7 @@ import sys
 
 class Publisher():
     QUICK_SEND = 0.00001
-    SLOW_SEND = 2.0
+    SLOW_SEND = 0.1
 
     def __init__(self, connection_param, exchange_name, publish_queue):
         self._connection = None

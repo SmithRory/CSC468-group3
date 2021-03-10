@@ -84,7 +84,7 @@ class Consumer():
     def on_bindok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_bindok")
         self._channel.basic_qos(
-            prefetch_count=1, callback=self.on_basic_qos_ok
+            prefetch_count=1000, callback=self.on_basic_qos_ok
         )
 
     def on_basic_qos_ok(self, _unused_frame):
