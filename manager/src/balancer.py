@@ -85,8 +85,8 @@ class Balancer():
 
         print("Active: {:>10} | Total: {:>10} | TPS: {:>5}".format(
             self.runtime_data.active_commands, 
-            (self._prev_active_commands-self.runtime_data.active_commands)/self._CLEANUP_PERIOD, 
-            self._total_commands_seen)
+            self._total_commands_seen),
+            (self._prev_active_commands-self.runtime_data.active_commands)/self._CLEANUP_PERIOD
         )
 
         self._prev_active_commands = self.runtime_data.active_commands
