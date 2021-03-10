@@ -9,6 +9,7 @@ from LogFile import log_handler
 import time
 import decimal
 import time
+import redis
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
 
