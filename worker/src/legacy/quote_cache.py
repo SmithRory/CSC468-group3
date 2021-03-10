@@ -22,7 +22,7 @@ Reddis will be implemented and replace this file.
 def add(stock_symbol, stock_price, quoteServerTime):
     r = redis.Redis(host='redishost')
     r.set(stock_symbol, stock_price)
-    r.expire(stock_symbol, (int(quoteServerTime)+6000))
+    r.expire(stock_symbol, (int(quoteServerTime)+1000))
 
 # param:
 #       stock_symbol : String value of upto three letters For e.g., ABC

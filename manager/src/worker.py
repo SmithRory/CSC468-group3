@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import threading
 
 @dataclass
 class Worker:
@@ -14,6 +15,13 @@ class Worker:
 @dataclass
 class RuntimeData:
     active_commands: int
+    mutex: threading.Lock
+
+@dataclass
+class ThreadCommunication:
+    buffer: list
+    is_empty: bool
+    mutex: threading.Lock
 
 # @dataclass
 # class UserIds:

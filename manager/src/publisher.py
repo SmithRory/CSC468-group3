@@ -1,20 +1,19 @@
 import pika
-import queue
-import time
 import functools
 import sys
 
 class Publisher():
-    QUICK_SEND = 0.00001
-    SLOW_SEND = 0.1
+    QUICK_SEND = 0.01
+    SLOW_SEND = 1.0
 
-    def __init__(self, connection_param, exchange_name, publish_queue):
+    def __init__(self, connection_param, exchange_name, communication):
         self._connection = None
         self._channel = None
         self._exchange = exchange_name
         self._connection_param = connection_param
 
-        self.publish_queue = publish_queue # Tuple(routing_key, message)
+        self.communication = communication
+        self._publish_buffer = [] # Tuple(routing_key, message)
         self._deliveries = {}
         self._acked = 0
         self._nacked = 0
@@ -79,21 +78,29 @@ class Publisher():
         self._connection.ioloop.call_later(publish_interval, self.publish_message)
 
     def publish_message(self):
-        data = self.publish_queue.get()
-        routing_key = data[0]
-        message = data[1]
+        if self.communication.is_empty:
+            self.schedule_next_message(self.SLOW_SEND)
+        else:
+            with self.communication.mutex:
+                self._publish_buffer = self.communication.buffer
+                self.communication.buffer = []
+                self.communication.is_empty = True
 
-        self._channel.basic_publish(
-            exchange=self._exchange,
-            routing_key=routing_key,
-            body=message,
-            properties=pika.BasicProperties()
-        )
+            for data in self._publish_buffer:
+                routing_key = data[0]
+                message = data[1]
 
-        self._message_number += 1
-        self._deliveries.update({self._message_number: message})
+                self._channel.basic_publish(
+                    exchange=self._exchange,
+                    routing_key=routing_key,
+                    body=message,
+                    properties=pika.BasicProperties()
+                )
 
-        self.schedule_next_message(self.QUICK_SEND)
+                self._message_number += 1
+                self._deliveries.update({self._message_number: message})
+
+            self.schedule_next_message(self.QUICK_SEND)
 
 
 

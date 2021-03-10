@@ -41,6 +41,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
             return response[0] # Only returns the stock price
 
         except socket.error:
+            # return 123.23
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 quote_server_connect()

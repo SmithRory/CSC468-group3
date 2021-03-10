@@ -1,20 +1,20 @@
 import threading
 from parser import Command, parse_command
 from publisher import Publisher
-from threading import Thread, Timer
+from threading import Thread, Timer, Lock
+from worker import ThreadCommunication
 import time
 import os
 import pika
-import queue
 import sys
 import random
 
 class Balancer():
-    def __init__(self, workers, queue, mutex, runtime_data):
+    def __init__(self, workers, communication, runtime_data):
         self.workers = workers
         self._NUM_WORKERS = len(workers)
-        self.command_queue = queue
-        self.mutex = mutex
+        self.communication = communication
+        self._send_buffer = None
 
         self._print_status_timer = None
         self._total_commands_seen = 0
@@ -23,7 +23,7 @@ class Balancer():
         self._PRINT_PERIOD = 5.0 # Seconds
 
         self._send_address = "rabbitmq"
-        self.publish_queue = None
+        self.publish_communication = None
         self.publisher = None
         self.t_publisher = None
 
@@ -31,12 +31,16 @@ class Balancer():
     and then begins listening for incoming commands. 
     '''
     def run(self):
-        self.publish_queue = queue.SimpleQueue()
+        self.publish_communication = ThreadCommunication(
+            buffer = [],
+            is_empty=True,
+            mutex=Lock()
+        )
 
         self.publisher = Publisher(
             connection_param=self._send_address,
             exchange_name=os.environ["BACKEND_EXCHANGE"],
-            publish_queue = self.publish_queue
+            communication = self.publish_communication
         )
         self.t_publisher = threading.Thread(target=self.publisher.run)
         self.t_publisher.start()
@@ -49,24 +53,35 @@ class Balancer():
         )
         self._print_status_timer.start()
 
-    def balance(self, message: str):
-        self._total_commands_seen = self._total_commands_seen + 1
-        routing_key = None
-        command = parse_command(message)
+    def balance(self):
+        with self.communication.mutex:
+            self._send_buffer = self.communication.buffer
+            self.communication.buffer = []
+            self.communication.is_empty = True
 
-        if command.command == "DUMPLOG":
-            while self.runtime_data.active_commands != 0:
-                time.sleep(2)
-            routing_key = "worker_queue_0"
-            print("Sent DUMPLOG to worker_queue_0")
-        else:
-            worker_index = abs(hash(command.uid)) % self._NUM_WORKERS
-            routing_key = self.workers[worker_index].route_key
-            with self.mutex:
-                self.runtime_data.active_commands += 1
-            # self.workers[worker_index].commands.append(command.number)
+        # print(f"Length of buffer: {len(self._send_buffer)}")
 
-        self.publish_queue.put((routing_key, message))
+        for message in self._send_buffer:
+            self._total_commands_seen = self._total_commands_seen + 1
+            routing_key = None
+            command = parse_command(message)
+
+            if command.command == "DUMPLOG":
+                self.publish_communication.is_empty = False
+                while self.runtime_data.active_commands != 0:
+                    time.sleep(2)
+                routing_key = "worker_queue_0"
+                print("Sent DUMPLOG to worker_queue_0")
+            else:
+                worker_index = abs(hash(command.uid)) % self._NUM_WORKERS
+                routing_key = self.workers[worker_index].route_key
+                with self.runtime_data.mutex:
+                    self.runtime_data.active_commands += 1
+                # self.workers[worker_index].commands.append(command.number)
+
+            self.publish_communication.buffer.append((routing_key, message))
+        
+        self.publish_communication.is_empty = False
 
     ''' Removes users from user_ids list if they havent been seen for USER_TIMEOUT.
     Also prints current activity for all workers and users.
