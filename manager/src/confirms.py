@@ -5,11 +5,13 @@ from threading import Lock
 import sys
 
 class Confirms():
-    def __init__(self, workers, mutex):
+    def __init__(self, workers, mutex, runtime_data):
         self.workers = workers
         self.mutex = mutex
 
-        self._recv_address = "rabbitmq-confirm"
+        self.runtime_data = runtime_data
+
+        self._recv_address = "rabbitmq"
         self._consumer = None
 
     def connect(self):
@@ -32,8 +34,15 @@ class Confirms():
        #print(message)
        #sys.stdout.flush()
 
+        # with self.mutex:
+        # for worker in self.workers:
+        #     if number in worker.commands:
+        #         worker.commands.remove(number)
+        #         return
+
         with self.mutex:
-            for worker in self.workers:
-                if number in worker.commands:
-                    worker.commands.remove(number)
-                    return
+            if self.runtime_data.active_commands > 0:
+                self.runtime_data.active_commands -= 1
+
+        # worker_index = abs(hash(command.uid)) % self._NUM_WORKERS
+        # self.workers[worker_index].remove(number)

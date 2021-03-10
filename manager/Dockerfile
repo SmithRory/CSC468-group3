@@ -10,3 +10,4 @@ RUN pip install --proxy="http://192.168.4.1:3128" --trusted-host pypi.org --trus
 COPY src/ /app
 
 CMD ["python3", "main.py"]
+# CMD ["python3", "-m", "cProfile", "-o", "stats", "main.py"]

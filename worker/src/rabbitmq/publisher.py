@@ -8,7 +8,7 @@ import threading
 
 class Publisher:
     def __init__(self):
-        self._send_address = "rabbitmq-confirm"
+        self._send_address = "rabbitmq"
         self.publish_queue = None
         self.publisher = None
         self.t_publisher = None
@@ -28,8 +28,8 @@ class Publisher:
         self.publish_queue.put(("confirm", message))
 
 class RabbitPublisher():
-    QUICK_SEND = 0.01
-    SLOW_SEND = 1.0
+    QUICK_SEND = 0.00001
+    SLOW_SEND = 2.0
 
     def __init__(self, connection_param, exchange_name, publish_queue):
         self._connection = None

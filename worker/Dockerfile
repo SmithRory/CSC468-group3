@@ -10,4 +10,5 @@ RUN pip install --proxy="http://192.168.4.1:3128" --trusted-host pypi.org --trus
 COPY logfile.xsd /app
 COPY src/ /app
 
-CMD ["python3", "-m", "cProfile", "-o", "stats", "main.py"]
+CMD ["python3", "main.py"]
+#CMD ["python3", "-m", "cProfile", "-o", "stats", "main.py"]

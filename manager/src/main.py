@@ -9,6 +9,7 @@ from consumer import Consumer
 from balancer import Balancer
 from confirms import Confirms
 from worker import Worker
+from worker import RuntimeData
 
 
 # Handles exiting when SIGTERM (sent by ^C input) is received 
@@ -24,17 +25,18 @@ signal.signal(signal.SIGTERM, exit_gracefully)
 def balancer_consume_thread(queue):
     consumer = Consumer(
             command_queue=queue,
-            connection_param="rabbitmq-frontend",
+            connection_param="rabbitmq",
             exchange_name=os.environ["FRONTEND_EXCHANGE"],
             queue_name="frontend",
             routing_key="frontend"
         )
     consumer.run() 
 
-def confirms_thread(workers, mutex):
+def confirms_thread(workers, mutex, runtime_data):
     confirms = Confirms(
         workers=workers,
-        mutex=mutex
+        mutex=mutex,
+        runtime_data=runtime_data
     )
     confirms.run()
 
@@ -85,16 +87,20 @@ def main():
 
     mutex = Lock()
     balancer_queue = queue.Queue()
+    runtime_data = RuntimeData(
+        active_commands=0
+    )
 
     t_balancer_consume = Thread(target=balancer_consume_thread, args=(balancer_queue,))
-    t_confirms = Thread(target=confirms_thread, args=(workers, mutex))
+    t_confirms = Thread(target=confirms_thread, args=(workers, mutex, runtime_data))
     t_balancer_consume.start()
     t_confirms.start()
 
     balancer = Balancer(
         workers=workers,
         queue=queue,
-        mutex=mutex
+        mutex=mutex,
+        runtime_data=runtime_data
     )
     balancer.run()
 

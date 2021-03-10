@@ -31,7 +31,7 @@ signal.signal(signal.SIGTERM, exit_gracefully)
 def queue_thread(queue):
      rabbit_queue = Consumer(
          command_queue=queue,
-         connection_param='rabbitmq-backend',
+         connection_param='rabbitmq',
          exchange_name=os.environ["BACKEND_EXCHANGE"],
          queue_name=os.environ["ROUTE_KEY"],
          routing_key=os.environ["ROUTE_KEY"]

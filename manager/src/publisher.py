@@ -5,8 +5,8 @@ import functools
 import sys
 
 class Publisher():
-    QUICK_SEND = 0.01
-    SLOW_SEND = 1.0
+    QUICK_SEND = 0.00001
+    SLOW_SEND = 2.0
 
     def __init__(self, connection_param, exchange_name, publish_queue):
         self._connection = None
@@ -75,28 +75,26 @@ class Publisher():
             self._nacked += 1
 
     def schedule_next_message(self, publish_interval):
+        #self._connection.ioloop.call_soon(self.publish_message)
         self._connection.ioloop.call_later(publish_interval, self.publish_message)
 
     def publish_message(self):
-        if not self.publish_queue.empty():
-            data = self.publish_queue.get()
-            routing_key = data[0]
-            message = data[1]
+        data = self.publish_queue.get()
+        routing_key = data[0]
+        message = data[1]
 
-            self._channel.basic_publish(
-                exchange=self._exchange,
-                routing_key=routing_key,
-                body=message,
-                properties=pika.BasicProperties()
-            )
+        self._channel.basic_publish(
+            exchange=self._exchange,
+            routing_key=routing_key,
+            body=message,
+            properties=pika.BasicProperties()
+        )
 
-            self._message_number += 1
-            self._deliveries.update({self._message_number: message})
+        self._message_number += 1
+        self._deliveries.update({self._message_number: message})
 
-            self.schedule_next_message(self.QUICK_SEND)
+        self.schedule_next_message(self.QUICK_SEND)
 
-        else:
-            self.schedule_next_message(self.SLOW_SEND)
 
 
     def run(self):
