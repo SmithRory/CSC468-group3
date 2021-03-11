@@ -9,7 +9,7 @@ from LogFile import log_handler
 import time
 import decimal
 import time
-import redis
+# import redis
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
 
@@ -17,7 +17,7 @@ import redis
 
 class CMDHandler:
 
-    def __init__(self, response_publisher : Publisher):
+    def __init__(self, response_publisher : Publisher, redis_cache):
         # Response publisher.
         self.response_publisher = response_publisher
 
@@ -38,7 +38,7 @@ class CMDHandler:
         self.polling_thread.start()
 
         # Redis cache
-        self.redis_cache = redis.Redis(host='redishost')
+        self.redis_cache = redis_cache
 
 
     # params: user_id, amount
@@ -101,7 +101,7 @@ class CMDHandler:
             return err_msg
 
         # Get the quote from the stock server
-        value = quote.get_quote(user_id, stock_symbol, transactionNum, "QUOTE")
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "QUOTE", self.redis_cache)
 
         # Forward the quote to the frontend so the user can see it
         ok_msg = f"[{transactionNum}] {stock_symbol} has value ${value:.2f}."
@@ -126,7 +126,7 @@ class CMDHandler:
             return err_msg
 
         # Get a quote for the stock the user wants to buy
-        value = quote.get_quote(user_id, stock_symbol, transactionNum, "BUY")
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "BUY", self.redis_cache)
 
         # Find the number of stocks the user can buy
         num_stocks = floor(max_debt/value) # Ex. max_dept=$100,value=$15per/stock-> num_stocks=6
@@ -308,7 +308,7 @@ class CMDHandler:
             return err_msg
 
         # Get a quote for the stock the user wants to sell
-        value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL")
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL", self.redis_cache)
 
         # Find the number of stocks the user owns.
         users_account = Accounts.objects(__raw__={'_id': user_id}).only('stocks').first()

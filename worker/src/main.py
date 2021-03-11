@@ -12,6 +12,7 @@ except:
 import signal
 import pika
 import queue
+import redis
 from threading import Thread
 from rabbitmq.consumer import Consumer
 from rabbitmq.publisher import Publisher
@@ -43,8 +44,10 @@ def main():
     publisher = Publisher()
     publisher.setup_communication()
 
+    redis_cache = redis.Redis(host='redishost')
+
     message_queue = queue.Queue()
-    command_handler = CMDHandler(response_publisher=publisher)
+    command_handler = CMDHandler(response_publisher=publisher, redis_cache=redis_cache)
 
     t_consumer = Thread(target=queue_thread, args=(message_queue,))
     t_consumer.start()

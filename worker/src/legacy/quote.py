@@ -17,10 +17,10 @@ def quote_server_connect():
     s.connect((QUOTE_ADDRESS, PORT))
     s.settimeout(None)
 
-def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : str) -> float:
+def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : str, redisHost) -> float:
     global s
 
-    result = quote_cache.get(stock_name)
+    result = quote_cache.get(stock_name, redisHost)
 
     if result is None:
         command = f'{stock_name}, {uid}\n'
@@ -34,7 +34,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
 
             response = parser.quote_result_parse(data.decode('utf-8'))
 
-            quote_cache.add(stock_name, response[0], response[3])
+            quote_cache.add(stock_name, response[0], response[3], redisHost)
 
             QuoteServerType().log(transactionNum=transactionNum, price=response[0], stockSymbol=stock_name, username=uid, quoteServerTime=response[3], cryptokey=response[4])
 
