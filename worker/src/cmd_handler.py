@@ -354,7 +354,7 @@ class CMDHandler:
             # The user does not own any of the stock they want to sell.
             err_msg = f"[{transactionNum}] Error: Invalid SELL command. The stock {stock_symbol} is not owned."
             print(err_msg)
-            ErrorEventType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage=err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, errorMessage=err_msg)
             return err_msg
         
         # Check if the user has enough of the given stock.
@@ -541,7 +541,7 @@ class CMDHandler:
         stock_symbol = params[1]
         buy_amount = round(params[2]) # Can only buy a whole number of shares.
 
-        UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=buy_amount)
+        UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(buy_amount))
 
         # Check if the user exists.
         if not Accounts().user_exists(user_id=user_id):
@@ -592,7 +592,7 @@ class CMDHandler:
             ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, errorMessage=err_msg)
             return err_msg
 
-        DebugType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=buy_amount, debugMessage="AUTO BUY amount is now set, trigger reset as needed")
+        DebugType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(buy_amount), debugMessage="AUTO BUY amount is now set, trigger reset as needed")
 
         # Notify the user.
         ok_msg = f"[{transactionNum}] Successfully set to buy {buy_amount} stocks of {stock_symbol} automatically. Please issue SET_BUY_TRIGGER to set the trigger price."
@@ -718,7 +718,7 @@ class CMDHandler:
         stock_symbol = params[1]
         sell_amount = floor(params[2]) # Can only sell a whole number of shares.
 
-        UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount)
+        UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(sell_amount))
 
         # Check if the user exists.
         if not Accounts().user_exists(user_id=user_id):
@@ -736,13 +736,13 @@ class CMDHandler:
             # The user does not own any of the stock they want to sell.
             err_msg = f"[{transactionNum}] Error: Invalid command. The stock {stock_symbol} is not owned."
             print(err_msg)
-            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage=err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(sell_amount), errorMessage=err_msg)
             return err_msg
 
         if users_stock.available < sell_amount:
             err_msg = f"[{transactionNum}] Error: Invalid command. Number of available stocks for {stock_symbol} is {users_stock.available} and is less than the amount set to sell {sell_amount}."
             print(err_msg)
-            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, errorMessage=err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(sell_amount), errorMessage=err_msg)
             return err_msg
 
         # Decrement the number of available shares.
@@ -762,7 +762,7 @@ class CMDHandler:
         # Notify the user.
         ok_msg = f"[{transactionNum}] Successfully set to sell {sell_amount} stocks of {stock_symbol} automatically. Please issue SET_SELL_TRIGGER to set the trigger price."
         print(ok_msg)
-        DebugType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage=ok_msg)
+        DebugType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(sell_amount), debugMessage=ok_msg)
         return ok_msg
 
     # params: user_id, stock_symbol, amount
@@ -772,7 +772,7 @@ class CMDHandler:
         stock_symbol = params[1]
         sell_trigger = params[2]
 
-        UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger)
+        UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
         if not Accounts().user_exists(user_id=user_id):
@@ -787,7 +787,7 @@ class CMDHandler:
         if pending_auto_sell is None:
             err_msg = f"[{transactionNum}] Error: Invalid command. Issue a SET_SELL_AMOUNT for this stock before setting the trigger price."
             print(err_msg)
-            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, errorMessage=err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, errorMessage=err_msg)
             return err_msg
 
         # Create the auto_sell
