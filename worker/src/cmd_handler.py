@@ -985,12 +985,14 @@ class CMDHandler:
         func = switch.get(cmd, self.unknown_cmd)
         
         # Handle the command.
-        response = ''
-        if func == self.unknown_cmd:
-            response = self.unknown_cmd(transactionNum=transactionNum, cmd=cmd)
-        else:
-            print(f"[{transactionNum}] PARAMS: {params}")
-            response = func(transactionNum, params)
+        try:
+            if func == self.unknown_cmd:
+                response = self.unknown_cmd(transactionNum=transactionNum, cmd=cmd)
+            else:
+                response = func(transactionNum, params)
+        except Exception as e:
+            response = f"[{transactionNum}] Error (ExceptionThrown): {e}\n\tCommands: {cmd}\n\tParameters: {params}"
+            ErrorEventType().log(transactionNum=transactionNum, command="UNKNOWN_COMMAND", errorMessage=response)
 
         # Send the response back.
         self.response_publisher.send(response)
