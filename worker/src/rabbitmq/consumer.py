@@ -99,7 +99,7 @@ class Consumer():
     def queue_callback(self, ch, method, properties, body):
         data = body.decode()
         if self._commands is not None:
-            self._commands.put(data)
+            self._commands.put(data, block=True)
         if self._call_on_callback is not None:
             self._call_on_callback(data)
     
