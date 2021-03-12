@@ -78,13 +78,13 @@ class Publisher():
         self._connection.ioloop.call_later(publish_interval, self.publish_message)
 
     def publish_message(self):
-        if self.communication.is_empty:
+        if self.communication.length <= 0:
             self.schedule_next_message(self.SLOW_SEND)
         else:
             with self.communication.mutex:
                 self._publish_buffer = self.communication.buffer
                 self.communication.buffer = []
-                self.communication.is_empty = True
+                self.communication.length = 0
 
             for data in self._publish_buffer:
                 routing_key = data[0]

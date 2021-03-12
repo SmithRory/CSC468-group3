@@ -12,9 +12,10 @@ except:
 import signal
 import pika
 import queue
-from threading import Thread
+from threading import Thread, Lock
 from rabbitmq.consumer import Consumer
 from rabbitmq.publisher import Publisher
+from rabbitmq.ThreadCommunication import ThreadCommunication
 from legacy.parser import command_parse
 from cmd_handler import CMDHandler
 
@@ -28,9 +29,9 @@ def exit_gracefully(self, signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
-def queue_thread(queue):
+def queue_thread(communication):
      rabbit_queue = Consumer(
-         command_queue=queue,
+         communication=communication,
          connection_param='rabbitmq',
          exchange_name=os.environ["BACKEND_EXCHANGE"],
          queue_name=os.environ["ROUTE_KEY"],
@@ -42,18 +43,34 @@ def main():
     publisher = Publisher()
     publisher.setup_communication()
 
-    message_queue = queue.Queue(maxsize=100)
+    communication = ThreadCommunication(
+        buffer=[],
+        length=0,
+        mutex=Lock()
+    )
     command_handler = CMDHandler(response_publisher=publisher)
 
-    t_consumer = Thread(target=queue_thread, args=(message_queue,))
+    t_consumer = Thread(target=queue_thread, args=(communication,))
     t_consumer.start()
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
-        command = message_queue.get() # Blocking
-        result = command_parse(command)
-        command_handler.handle_command(result[0], result[1], result[2])
-        sys.stdout.flush()
+        if communication.length > 0:
+            buffer = None
+            with communication.mutex:
+                buffer = communication.buffer
+                communication.buffer = []
+                communication.length = 0
+
+            for command in buffer:
+                result = command_parse(command)
+                command_handler.handle_command(result[0], result[1], result[2])
+
+            sys.stdout.flush()
+        
+        else:
+            time.sleep(0.1)    
+
 
     t_consumer.join()
 
