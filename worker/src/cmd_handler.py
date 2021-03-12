@@ -38,7 +38,7 @@ class CMDHandler:
 
     # params: user_id, amount
     def add(self, transactionNum, params) -> str:
-        amount = params[1]
+        amount = decimal.Decimal(params[1])
         user_id = params[0]
         UserCommandType().log(transactionNum=transactionNum, command="ADD", username=user_id, funds=amount)
 
@@ -49,8 +49,8 @@ class CMDHandler:
             
             # Update the account.
             update = {
-                'inc__account': decimal.Decimal(amount),
-                'inc__available': decimal.Decimal(amount)
+                'inc__account': amount,
+                'inc__available': amount
             }
             ret = Accounts.objects(pk=user_id).update_one(**update)
 
@@ -604,7 +604,7 @@ class CMDHandler:
 
         user_id = params[0]
         stock_symbol = params[1]
-        buy_trigger = params[2]
+        buy_trigger = decimal.Decimal(params[2])
 
         UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger)
 
