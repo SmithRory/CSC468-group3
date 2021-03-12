@@ -46,7 +46,7 @@ def main():
     redis_cache = redis.Redis(host='redishost')
 
     message_queue = queue.SimpleQueue()
-    command_handler = CMDHandler(response_publisher=publisher, redis_cache)
+    command_handler = CMDHandler(response_publisher=publisher, redis_cache=redis_cache)
 
     t_consumer = Thread(target=queue_thread, args=(message_queue,))
     t_consumer.start()
