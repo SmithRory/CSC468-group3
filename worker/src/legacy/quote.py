@@ -30,7 +30,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
             data = s.recv(1024)
             if len(data) < 2 :
                 quote_server_connect()
-                return get_quote(uid, stock_name, transactionNum, userCommand)
+                return get_quote(uid, stock_name, transactionNum, userCommand, redisHost)
 
             response = parser.quote_result_parse(data.decode('utf-8'))
 
@@ -49,7 +49,7 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
                 print("Socket connection timeout")
                 time.sleep(0.1) # Just to reduce spam error messages
 
-            return get_quote(uid, stock_name, transactionNum, userCommand)
+            return get_quote(uid, stock_name, transactionNum, userCommand, redisHost)
 
 
 
