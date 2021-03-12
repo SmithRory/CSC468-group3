@@ -26,8 +26,8 @@ class Confirms():
         self._consumer.run()
 
     def on_receive(self, message):
-        number = re.findall(".*?\[(.*)].*", message)
-        number = int(number[0])
+        #number = re.findall(".*?\[(.*)].*", message)
+        #number = int(number[0])
 
         with self.runtime_data.mutex:
             if self.runtime_data.active_commands > 0:
