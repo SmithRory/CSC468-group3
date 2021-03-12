@@ -8,7 +8,7 @@ import threading
 
 class Publisher:
     def __init__(self):
-        self._send_address = "rabbitmq-confirm"
+        self._send_address = "rabbitmq"
         self.publish_queue = None
         self.publisher = None
         self.t_publisher = None
@@ -28,8 +28,8 @@ class Publisher:
         self.publish_queue.put(("confirm", message))
 
 class RabbitPublisher():
-    QUICK_SEND = 0.01
-    SLOW_SEND = 1.0
+    QUICK_SEND = 0.001
+    SLOW_SEND = 0.1
 
     def __init__(self, connection_param, exchange_name, publish_queue):
         self._connection = None
@@ -54,11 +54,11 @@ class RabbitPublisher():
         )
 
     def on_connection_open_error(self, _unused_connection, err):
-        print('Connection open failed, reopening in 5 seconds: %s', err)
+        print(f'{self._connection_param} Connection open failed, reopening in 5 seconds: {err}')
         self._connection.ioloop.call_later(5, self._connection.ioloop.stop)
 
     def on_connection_closed(self, _unused_connection, reason):
-        print('Connection closed, reopening in 5 seconds: %s', reason)
+        print(f'{self._connection_param} Connection closed, reopening in 5 seconds: {reason}')
         self._connection.ioloop.call_later(5, self._connection.ioloop.stop)
 
     def on_connection_open(self, _unused_connection):
@@ -98,28 +98,26 @@ class RabbitPublisher():
             self._nacked += 1
 
     def schedule_next_message(self, publish_interval):
+        #self._connection.ioloop.call_soon(self.publish_message)
         self._connection.ioloop.call_later(publish_interval, self.publish_message)
 
     def publish_message(self):
-        if not self.publish_queue.empty():
-            data = self.publish_queue.get()
-            routing_key = data[0]
-            message = data[1]
+        data = self.publish_queue.get()
+        routing_key = data[0]
+        message = data[1]
 
-            self._channel.basic_publish(
-                exchange=self._exchange,
-                routing_key=routing_key,
-                body=message,
-                properties=pika.BasicProperties()
-            )
+        self._channel.basic_publish(
+            exchange=self._exchange,
+            routing_key=routing_key,
+            body=message,
+            properties=pika.BasicProperties()
+        )
 
-            self._message_number += 1
-            self._deliveries.update({self._message_number: message})
+        self._message_number += 1
+        self._deliveries.update({self._message_number: message})
 
-            self.schedule_next_message(self.QUICK_SEND)
+        self.schedule_next_message(self.QUICK_SEND)
 
-        else:
-            self.schedule_next_message(self.SLOW_SEND)
 
 
     def run(self):

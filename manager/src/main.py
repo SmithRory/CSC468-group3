@@ -1,14 +1,16 @@
 import signal
 import sys
 import os
-import time
 import docker
-import queue
-from threading import Thread, Lock
+from multiprocessing import Process, Queue
+import threading
+import time
 from consumer import Consumer
 from balancer import Balancer
 from confirms import Confirms
 from worker import Worker
+from worker import RuntimeData
+from worker import ThreadCommunication
 
 
 # Handles exiting when SIGTERM (sent by ^C input) is received 
@@ -21,20 +23,20 @@ def exit_gracefully(self, signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
-def balancer_consume_thread(queue):
+def balancer_consume_thread(communication):
     consumer = Consumer(
-            command_queue=queue,
-            connection_param="rabbitmq-frontend",
+            communication=communication,
+            connection_param="rabbitmq",
             exchange_name=os.environ["FRONTEND_EXCHANGE"],
             queue_name="frontend",
             routing_key="frontend"
         )
     consumer.run() 
 
-def confirms_thread(workers, mutex):
+def confirms_thread(workers, runtime_data):
     confirms = Confirms(
         workers=workers,
-        mutex=mutex
+        runtime_data=runtime_data
     )
     confirms.run()
 
@@ -83,27 +85,35 @@ def main():
             route_key=route_key
         ))
 
-    mutex = Lock()
-    balancer_queue = queue.Queue()
+    communication = ThreadCommunication(
+        buffer=[],
+        is_empty=True,
+        mutex=threading.Lock()
+    )
+    runtime_data = RuntimeData(
+        active_commands=0,
+        mutex=threading.Lock()
+    )
 
-    t_balancer_consume = Thread(target=balancer_consume_thread, args=(balancer_queue,))
-    t_confirms = Thread(target=confirms_thread, args=(workers, mutex))
+    t_balancer_consume = threading.Thread(target=balancer_consume_thread, args=(communication,))
+    t_confirms = threading.Thread(target=confirms_thread, args=(workers, runtime_data))
     t_balancer_consume.start()
     t_confirms.start()
 
     balancer = Balancer(
         workers=workers,
-        queue=queue,
-        mutex=mutex
+        communication=communication,
+        runtime_data=runtime_data
     )
     balancer.run()
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
-        if not balancer_queue.empty():
-            balancer.balance(balancer_queue.get())
+        if not communication.is_empty:
+            balancer.balance()
         else:
-            time.sleep(0.5)
+            time.sleep(2)
+
         sys.stdout.flush()
         
     for worker in workers:

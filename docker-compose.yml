@@ -32,9 +32,7 @@ services:
     restart: always
     depends_on:
       - worker
-      - rabbitmq_backend
-      - rabbitmq_frontend
-      - rabbitmq_confirm
+      - rabbitmq
     environment: 
       - NUM_WORKERS=${NUM_WORKERS}
       - FRONTEND_EXCHANGE=${FRONTEND_EXCHANGE}
@@ -60,41 +58,19 @@ services:
       - "quoteserver.seng.uvic.ca:192.168.4.2"
     depends_on:
       - mongodb
-      - rabbitmq_backend
-      - rabbitmq_confirm
-    
-  rabbitmq_frontend:
+      - rabbitmq
+
+  rabbitmq:
     image: rabbitmq:3-management
-    container_name: rabbitmq-frontend
+    container_name: rabbitmq
     restart: unless-stopped
     networks:
      - custom_network
-    # environment:
-    #   - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-admin}
-    #   - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-admin}
     ports:
-      - 5672:5672
-      - 15672:15672
-    #logging:
-    #driver: "none"
-
-  rabbitmq_backend:
-    image: rabbitmq:3-management
-    container_name: rabbitmq-backend
-    restart: unless-stopped
-    networks:
-     - custom_network
-    #logging:
-    #driver: "none"
-
-  rabbitmq_confirm:
-    image: rabbitmq:3-management
-    container_name: rabbitmq-confirm
-    restart: unless-stopped
-    networks:
-     - custom_network
-    #logging:
-    #driver: "none"
+     - 5672:5672
+     - 15672:15672
+    logging:
+      driver: "none"
 
   mongodb:
     image: mongo
