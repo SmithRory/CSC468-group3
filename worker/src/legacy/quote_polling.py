@@ -54,9 +54,6 @@ class UserPollingStocks:
     def get_user_autobuy(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
         with self._lock:
-            debug = f"GET_USER_AUTOBUY:\n\t user_id: {user_id}\n\tstock_symbol: {stock_symbol}\n\tuser_polling_stocks: {self.user_polling_stocks}"
-            DebugType().log(transactionNum=0, command="SET_BUY_TRIGGER", username=user_id, debugMessage=debug)
-
             if stock_symbol in self.user_polling_stocks:
                 user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_buy'].pop(user_id, None)
                 self.remove_if_empty(stock_symbol)
@@ -81,9 +78,6 @@ class UserPollingStocks:
     def get_user_autosell(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
         with self._lock:
-            debug = f"GET_USER_AUTOSELL:\n\t user_id: {user_id}\n\tstock_symbol: {stock_symbol}\n\tuser_polling_stocks: {self.user_polling_stocks}"
-            DebugType().log(transactionNum=0, command="SET_BUY_TRIGGER", username=user_id, debugMessage=debug)
-
             if stock_symbol in self.user_polling_stocks:
                 user_transaction_num = self.user_polling_stocks[stock_symbol]['auto_sell'].pop(user_id, None)
                 self.remove_if_empty(stock_symbol)

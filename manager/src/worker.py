@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import threading
 
 @dataclass
 class Worker:
@@ -12,10 +13,21 @@ class Worker:
         return f"Worker(container_id={self.container_id}, len(commands)={len(self.commands)}, route_key={self.route_key}"
 
 @dataclass
-class UserIds:
-    user_id: str
-    assigned_worker: str
-    last_seen: float
+class RuntimeData:
+    active_commands: int
+    mutex: threading.Lock
 
-    def __repr__(self) -> str:
-        return f"UserIds(user_id={self.user_id}, assigned_worker={self.assigned_worker}, last_seen={self.last_seen}"
+@dataclass
+class ThreadCommunication:
+    buffer: list
+    is_empty: bool
+    mutex: threading.Lock
+
+# @dataclass
+# class UserIds:
+#     user_id: str
+#     assigned_worker: str
+#     last_seen: float
+
+#     def __repr__(self) -> str:
+#         return f"UserIds(user_id={self.user_id}, assigned_worker={self.assigned_worker}, last_seen={self.last_seen}"

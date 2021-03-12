@@ -18,7 +18,6 @@ from rabbitmq.publisher import Publisher
 from legacy.parser import command_parse
 from cmd_handler import CMDHandler
 
-
 # Handles exiting when SIGTERM (sent by ^C input) is received
 # in a gracefull way. Main loop will only exit after a completed iteration
 # so that every service can shut down properly.
@@ -32,7 +31,7 @@ signal.signal(signal.SIGTERM, exit_gracefully)
 def queue_thread(queue):
      rabbit_queue = Consumer(
          command_queue=queue,
-         connection_param='rabbitmq-backend',
+         connection_param='rabbitmq',
          exchange_name=os.environ["BACKEND_EXCHANGE"],
          queue_name=os.environ["ROUTE_KEY"],
          routing_key=os.environ["ROUTE_KEY"]
@@ -43,7 +42,7 @@ def main():
     publisher = Publisher()
     publisher.setup_communication()
 
-    message_queue = queue.Queue()
+    message_queue = queue.SimpleQueue()
     command_handler = CMDHandler(response_publisher=publisher)
 
     t_consumer = Thread(target=queue_thread, args=(message_queue,))
@@ -51,12 +50,10 @@ def main():
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
-        if not message_queue.empty():
-            result = command_parse(message_queue.get())
-            command_handler.handle_command(result[0], result[1], result[2])
-        else:
-            time.sleep(0.5)
-            sys.stdout.flush()
+        command = message_queue.get() # Blocking
+        result = command_parse(command)
+        command_handler.handle_command(result[0], result[1], result[2])
+        sys.stdout.flush()
 
     t_consumer.join()
 

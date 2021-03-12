@@ -1,6 +1,4 @@
 import pika
-import queue
-import time
 import functools
 
 ''' Encapsulates Rabbitmq interactions.
@@ -10,11 +8,11 @@ as that is the order they are called by Rabbitmq.
 
 '''
 class Consumer():
-    def __init__(self, connection_param, exchange_name, queue_name, routing_key, command_queue=None, call_on_callback=None):
+    def __init__(self, connection_param, exchange_name, queue_name, routing_key, communication=None, call_on_callback=None):
         self._connection = None
         self._channel = None
         self._stopping = False
-        self._commands = command_queue
+        self.communication = communication
         self._connection_param = connection_param
         self._exchange_name = exchange_name
         self._queue_name = queue_name
@@ -67,7 +65,7 @@ class Consumer():
         cb = functools.partial(self.on_queue_declareok, userdata=self._queue_name)
         self._channel.queue_declare(
             queue=self._queue_name,
-            #arguments={"x-queue-mode": "lazy"},
+            arguments={"x-queue-mode": "lazy"},
             callback=cb
         )
 
@@ -84,7 +82,7 @@ class Consumer():
     def on_bindok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_bindok")
         self._channel.basic_qos(
-            prefetch_count=1, callback=self.on_basic_qos_ok
+            prefetch_count=1000, callback=self.on_basic_qos_ok
         )
 
     def on_basic_qos_ok(self, _unused_frame):
@@ -98,8 +96,9 @@ class Consumer():
     ''' Gets called when queue has a message '''
     def queue_callback(self, ch, method, properties, body):
         data = body.decode()
-        if self._commands is not None:
-            self._commands.put(data)
+        if self.communication is not None:
+            self.communication.buffer.append(data)
+            self.communication.is_empty = False
         if self._call_on_callback is not None:
             self._call_on_callback(data)
     
