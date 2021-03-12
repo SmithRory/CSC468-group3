@@ -52,7 +52,6 @@ def main():
     while not EXIT_PROGRAM:
         command = message_queue.get() # Blocking
         result = command_parse(command)
-        print(f"PARSED RESULT: {result}")
         command_handler.handle_command(result[0], result[1], result[2])
         sys.stdout.flush()
 
