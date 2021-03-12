@@ -67,7 +67,7 @@ class Consumer():
         cb = functools.partial(self.on_queue_declareok, userdata=self._queue_name)
         self._channel.queue_declare(
             queue=self._queue_name,
-            # arguments={"x-queue-mode": "lazy"},
+            arguments={"x-queue-mode": "lazy"},
             callback=cb
         )
 
@@ -84,7 +84,7 @@ class Consumer():
     def on_bindok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_bindok")
         self._channel.basic_qos(
-            prefetch_count=1000, callback=self.on_basic_qos_ok
+            prefetch_count=1, callback=self.on_basic_qos_ok
         )
 
     def on_basic_qos_ok(self, _unused_frame):

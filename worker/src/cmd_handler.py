@@ -652,11 +652,10 @@ class CMDHandler:
         
         # Add the user to the list of auto_buys for the stock
         self.quote_polling.add_user_autobuy(user_id=user_id, stock_symbol=stock_symbol, transactionNum=transactionNum, command="SET_BUY_TRIGGER")
-
-        DebugType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, debugMessage="AUTO BUY trigger is set.")
         
         # Notify user.
         ok_msg = f"[{transactionNum}] Successfully set an auto buy for {users_auto_buy.amount} stocks of {stock_symbol} at ${buy_trigger:.2f} per stock."
+        DebugType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger, debugMessage=ok_msg)
         print(ok_msg)
         return ok_msg
 
@@ -827,12 +826,10 @@ class CMDHandler:
 
         # Add user to the list of auto_sells for the stock
         self.quote_polling.add_user_autosell(user_id = user_id, stock_symbol = stock_symbol, transactionNum=transactionNum, command="SET_SELL_TRIGGER")
-
-        # Log
-        DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, debugMessage="AUTO SELL trigger is set")
         
         # Notify the user
         ok_msg = f"[{transactionNum}] Successfully set an auto sell for ${pending_auto_sell['sell_amount']} stocks of {stock_symbol} when the price is at least ${sell_trigger:.2f} per stock."
+        DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=sell_trigger, debugMessage=ok_msg)
         print(ok_msg)
         return ok_msg
 
