@@ -9,6 +9,7 @@ from LogFile import log_handler
 import time
 import decimal
 import time
+import traceback
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
 
@@ -992,6 +993,8 @@ class CMDHandler:
                 response = func(transactionNum, params)
         except Exception as e:
             response = f"[{transactionNum}] Error (ExceptionThrown): {e}\n\tCommands: {cmd}\n\tParameters: {params}"
+            print(response)
+            print(f"Traceback:\n{traceback.format_exc()}")
             ErrorEventType().log(transactionNum=transactionNum, command="UNKNOWN_COMMAND", errorMessage=response)
 
         # Send the response back.
