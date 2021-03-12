@@ -1,5 +1,4 @@
 import pika
-import queue
 import time
 import functools
 
@@ -10,11 +9,13 @@ as that is the order they are called by Rabbitmq.
 
 '''
 class Consumer():
-    def __init__(self, connection_param, exchange_name, queue_name, routing_key, command_queue=None, call_on_callback=None):
+    MAX_BUFFER_LENGTH = 15000
+
+    def __init__(self, connection_param, exchange_name, queue_name, routing_key, communication=None, call_on_callback=None):
         self._connection = None
         self._channel = None
         self._stopping = False
-        self._commands = command_queue
+        self.communication = communication
         self._connection_param = connection_param
         self._exchange_name = exchange_name
         self._queue_name = queue_name
@@ -67,7 +68,7 @@ class Consumer():
         cb = functools.partial(self.on_queue_declareok, userdata=self._queue_name)
         self._channel.queue_declare(
             queue=self._queue_name,
-            arguments={"x-queue-mode": "lazy"},
+            # arguments={"x-queue-mode": "lazy"},
             callback=cb
         )
 
@@ -92,16 +93,24 @@ class Consumer():
         self._channel.basic_consume(
             queue=self._queue_name,
             on_message_callback=self.queue_callback,
-            auto_ack=True
+            auto_ack=False
         )
 
     ''' Gets called when queue has a message '''
     def queue_callback(self, ch, method, properties, body):
         data = body.decode()
-        if self._commands is not None:
-            self._commands.put(data)
+        if self.communication is not None:
+            while(self.communication.length >= self.MAX_BUFFER_LENGTH):
+                time.sleep(1)
+
+            with self.communication.mutex:
+                self.communication.buffer.append(data)
+                self.communication.length += 1
+
         if self._call_on_callback is not None:
             self._call_on_callback(data)
+
+        self._channel.basic_ack(delivery_tag=method.delivery_tag)
     
     def stop(self):
         self._stopping = True

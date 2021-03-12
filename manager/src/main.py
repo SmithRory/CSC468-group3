@@ -87,7 +87,7 @@ def main():
 
     communication = ThreadCommunication(
         buffer=[],
-        is_empty=True,
+        length=0,
         mutex=threading.Lock()
     )
     runtime_data = RuntimeData(
@@ -109,10 +109,10 @@ def main():
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
-        if not communication.is_empty:
+        if communication.length > 0:
             balancer.balance()
         else:
-            time.sleep(2)
+            time.sleep(0.1)
 
         sys.stdout.flush()
         

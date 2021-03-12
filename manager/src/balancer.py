@@ -33,7 +33,7 @@ class Balancer():
     def run(self):
         self.publish_communication = ThreadCommunication(
             buffer = [],
-            is_empty=True,
+            length=0,
             mutex=Lock()
         )
 
@@ -57,7 +57,7 @@ class Balancer():
         with self.communication.mutex:
             self._send_buffer = self.communication.buffer
             self.communication.buffer = []
-            self.communication.is_empty = True
+            self.communication.length = 0
 
         # print(f"Length of buffer: {len(self._send_buffer)}")
 
@@ -79,8 +79,10 @@ class Balancer():
                     self.runtime_data.active_commands += 1
                 # self.workers[worker_index].commands.append(command.number)
 
-            self.publish_communication.buffer.append((routing_key, message))
-        
+            with self.publish_communication.mutex:
+                self.publish_communication.buffer.append((routing_key, message))
+                self.publish_communication.length += 1
+
         self.publish_communication.is_empty = False
 
     ''' Removes users from user_ids list if they havent been seen for USER_TIMEOUT.
