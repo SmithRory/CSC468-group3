@@ -38,9 +38,9 @@ class CMDHandler:
 
     # params: user_id, amount
     def add(self, transactionNum, params) -> str:
-        amount = decimal.Decimal(params[1])
+        amount = params[1]
         user_id = params[0]
-        UserCommandType().log(transactionNum=transactionNum, command="ADD", username=user_id, funds=amount)
+        UserCommandType().log(transactionNum=transactionNum, command="ADD", username=user_id, funds=decimal.Decimal(amount))
 
         # Get the user
         # Note: user.account will return a 'float' if the user
@@ -49,8 +49,8 @@ class CMDHandler:
             
             # Update the account.
             update = {
-                'inc__account': amount,
-                'inc__available': amount
+                'inc__account': decimal.Decimal(amount),
+                'inc__available': decimal.Decimal(amount)
             }
             ret = Accounts.objects(pk=user_id).update_one(**update)
 
