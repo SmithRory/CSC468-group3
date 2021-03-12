@@ -9,7 +9,6 @@ from LogFile import log_handler
 import time
 import decimal
 import time
-# import redis
 
 # TODO: perform atomic updates instead of querying document, modifying it, and then saving it
 
@@ -73,6 +72,9 @@ class CMDHandler:
             user.account = user.account + amount
             user.available = user.available + amount
             user.save()
+
+            # Add user_id to cache
+            self.redis_cache.sadd('user_ids', user_id)
 
             # Log new user.
             DebugType().log(transactionNum=transactionNum, command="ADD", username=user_id, debugMessage=f"Creating user {user_id}.")
@@ -161,6 +163,9 @@ class CMDHandler:
         # Add the uncommitted buy to the list.
         uncommitted_buy = {user_id: {'stock': stock_symbol, 'num_stocks': num_stocks, 'quote': value, 'amount': max_debt}}
         self.uncommitted_buys.update(uncommitted_buy)
+
+
+
         
         # Cancel any previous timers for this user. There can only be one pending buy at a time.
         previous_timer = self.uncommitted_buy_timers.pop(user_id, None)
