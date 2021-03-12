@@ -989,6 +989,7 @@ class CMDHandler:
         if func == self.unknown_cmd:
             response = self.unknown_cmd(transactionNum=transactionNum, cmd=cmd)
         else:
+            print(f"[{transactionNum}] PARAMS: {params}")
             response = func(transactionNum, params)
 
         # Send the response back.
