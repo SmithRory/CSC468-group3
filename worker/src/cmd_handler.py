@@ -35,7 +35,7 @@ class CMDHandler:
         # Quote polling for auto buy/sell.
         self.POLLING_RATE = 120 # 120 seconds
         self.quote_polling = quote_polling.UserPollingStocks()
-        self.polling_thread = quote_polling.QuotePollingThread(quote_polling = self.quote_polling, polling_rate = self.POLLING_RATE, response_publisher = response_publisher, self.redis_cache)
+        self.polling_thread = quote_polling.QuotePollingThread(quote_polling = self.quote_polling, polling_rate = self.POLLING_RATE, response_publisher = response_publisher, redis_cache = redis_cache)
         self.polling_thread.setDaemon(True) # Will be cleaned up on exit.
         self.polling_thread.start()
 
