@@ -73,7 +73,9 @@ class UserPollingStocks:
 
     def get_autobuy_users(self, stock_symbol):
         ''' Returns a list of all users with an autobuy setup. '''
-        return list(self.user_polling_stocks[stock_symbol]['auto_buy'])
+        autobuy_users = self.user_polling_stocks[stock_symbol]['auto_buy']
+        print(f"AutoBuyUsers: {autobuy_users}")
+        return list(autobuy_users)
 
     def get_user_autosell(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
