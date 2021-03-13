@@ -85,7 +85,7 @@ class Publisher():
         self._connection.ioloop.call_later(publish_interval, self.publish_message)
 
     def publish_message(self):
-        if self.communication.length <= 0:
+        if self._channel is None or self.communication.length <= 0:
             self.schedule_next_message(self.SLOW_SEND)
         else:
             with self.communication.mutex:

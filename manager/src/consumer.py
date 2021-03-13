@@ -66,7 +66,7 @@ class Consumer():
     def on_channel_closed(self, channel, reason):
         print(f"Connection closed: {reason}")
         self._channel = None
-        self._connection.close()
+        # self._connection.close()
 
     def on_exchange_declareok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_exchange_declareok")

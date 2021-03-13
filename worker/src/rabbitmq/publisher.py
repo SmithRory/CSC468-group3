@@ -86,8 +86,8 @@ class RabbitPublisher():
     def on_channel_closed(self, channel, reason):
         print(f"Connection closed: {reason}")
         self._channel = None
-        if not self._stopping:
-            self._connection.close()
+        # if not self._stopping:
+        #     self._connection.close()
 
     def on_exchange_declareok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_exchange_declareok")
@@ -117,7 +117,7 @@ class RabbitPublisher():
         self._connection.ioloop.call_later(publish_interval, self.publish_message)
 
     def publish_message(self):
-        if self.communication.length <= 0:
+        if self._channel is None or self.communication.length <= 0:
             self.schedule_next_message(self.SLOW_SEND)
         else:
             with self.communication.mutex:

@@ -124,7 +124,7 @@ def main():
         if communication.length > 0:
             balancer.balance()
         # else:
-        time.sleep(1.0)
+        time.sleep(2.0)
 
         sys.stdout.flush()
         
