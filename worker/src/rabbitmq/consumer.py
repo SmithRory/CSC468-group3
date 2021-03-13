@@ -99,7 +99,7 @@ class Consumer():
         self._channel.basic_consume(
             queue=self._queue_name,
             on_message_callback=self.queue_callback,
-            auto_ack=False
+            auto_ack=True
         )
 
     ''' Gets called when queue has a message '''
@@ -116,7 +116,7 @@ class Consumer():
         if self._call_on_callback is not None:
             self._call_on_callback(data)
 
-        self._channel.basic_ack(delivery_tag=method.delivery_tag)
+        # self._channel.basic_ack(delivery_tag=method.delivery_tag)
     
     def stop(self):
         self._stopping = True

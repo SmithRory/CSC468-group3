@@ -69,7 +69,7 @@ def main():
             sys.stdout.flush()
         
         else:
-            time.sleep(0.1)    
+            time.sleep(0.5)    
 
 
     t_consumer.join()

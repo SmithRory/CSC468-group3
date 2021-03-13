@@ -4,7 +4,7 @@ import sys
 
 class Publisher():
     QUICK_SEND = 0.01
-    SLOW_SEND = 1.0
+    SLOW_SEND = 2.0
 
     def __init__(self, connection_param, exchange_name, communication):
         self._connection = None
@@ -66,13 +66,13 @@ class Publisher():
         first message to be sent to RabbitMQ
         """
         print(f"{self._connection_param}: Issuing consumer related RPC commands")
-        self._channel.confirm_delivery(self.on_delivery_confirmation)
+        # self._channel.confirm_delivery(self.on_delivery_confirmation)
         self.schedule_next_message(self.SLOW_SEND)
 
     def on_delivery_confirmation(self, method_frame):
         conf_message = self._deliveries.get(method_frame.method.delivery_tag)
-        
         confirmation_type = method_frame.method.NAME.split('.')[1].lower()
+
         if confirmation_type == 'ack':
             self._acked += 1
         elif confirmation_type == 'nack':
@@ -101,11 +101,12 @@ class Publisher():
                     exchange=self._exchange,
                     routing_key=routing_key,
                     body=message,
-                    properties=pika.BasicProperties()
+                    properties=pika.BasicProperties(),
+                    mandatory=True
                 )
 
-                self._message_number += 1
-                self._deliveries.update({self._message_number: message})
+                # self._message_number += 1
+                # self._deliveries.update({self._message_number: message})
 
             self.schedule_next_message(self.QUICK_SEND)
 

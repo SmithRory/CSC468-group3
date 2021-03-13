@@ -5,39 +5,47 @@ import queue
 import time
 import functools
 import threading
+from rabbitmq.ThreadCommunication import ThreadCommunication
 
 class Publisher:
     def __init__(self):
         self._send_address = "rabbitmq"
-        self.publish_queue = None
+        self.communication = None
         self.publisher = None
         self.t_publisher = None
 
     def setup_communication(self):
-        self.publish_queue = queue.Queue()
+        self.communication = ThreadCommunication(
+            buffer = [],
+            length=0,
+            mutex=threading.Lock()
+        )
 
         self.publisher = RabbitPublisher(
             connection_param=self._send_address,
             exchange_name=os.environ["CONFIRMS_EXCHANGE"],
-            publish_queue = self.publish_queue
+            communication = self.communication
         )
         self.t_publisher = threading.Thread(target=self.publisher.run)
         self.t_publisher.start()
 
     def send(self, message: str):
-        self.publish_queue.put(("confirm", message))
+        with self.communication.mutex:
+            self.communication.buffer.append(message)
+            self.communication.length += 1
 
 class RabbitPublisher():
-    QUICK_SEND = 0.001
-    SLOW_SEND = 0.1
+    QUICK_SEND = 0.01
+    SLOW_SEND = 2.0
 
-    def __init__(self, connection_param, exchange_name, publish_queue):
+    def __init__(self, connection_param, exchange_name, communication):
         self._connection = None
         self._channel = None
         self._exchange = exchange_name
         self._connection_param = connection_param
 
-        self.publish_queue = publish_queue # Tuple(routing_key, message)
+        self.communication = communication
+        self._publish_buffer = [] # Tuple(routing_key, message)
         self._deliveries = {}
         self._acked = 0
         self._nacked = 0
@@ -69,6 +77,7 @@ class RabbitPublisher():
         print(f"{self._connection_param}: on_channel_open")
         self._channel = channel
         self._channel.add_on_close_callback(self.on_channel_closed)
+        
         cb = functools.partial(
             self.on_exchange_declareok, userdata=self._exchange
         )
@@ -89,13 +98,13 @@ class RabbitPublisher():
         first message to be sent to RabbitMQ
         """
         print(f"{self._connection_param}: Issuing consumer related RPC commands")
-        self._channel.confirm_delivery(self.on_delivery_confirmation)
+        # self._channel.confirm_delivery(self.on_delivery_confirmation)
         self.schedule_next_message(self.SLOW_SEND)
 
     def on_delivery_confirmation(self, method_frame):
         conf_message = self._deliveries.get(method_frame.method.delivery_tag)
-        
         confirmation_type = method_frame.method.NAME.split('.')[1].lower()
+
         if confirmation_type == 'ack':
             self._acked += 1
         elif confirmation_type == 'nack':
@@ -108,21 +117,30 @@ class RabbitPublisher():
         self._connection.ioloop.call_later(publish_interval, self.publish_message)
 
     def publish_message(self):
-        data = self.publish_queue.get()
-        routing_key = data[0]
-        message = data[1]
+        if self.communication.length <= 0:
+            self.schedule_next_message(self.SLOW_SEND)
+        else:
+            with self.communication.mutex:
+                self._publish_buffer = self.communication.buffer
+                self.communication.buffer = []
+                self.communication.length = 0
 
-        self._channel.basic_publish(
-            exchange=self._exchange,
-            routing_key=routing_key,
-            body=message,
-            properties=pika.BasicProperties()
-        )
+            for data in self._publish_buffer:
+                routing_key = "confirm"
+                message = data[1]
 
-        self._message_number += 1
-        self._deliveries.update({self._message_number: message})
+                self._channel.basic_publish(
+                    exchange=self._exchange,
+                    routing_key=routing_key,
+                    body=message,
+                    properties=pika.BasicProperties(),
+                    mandatory=True
+                )
 
-        self.schedule_next_message(self.QUICK_SEND)
+                # self._message_number += 1
+                # self._deliveries.update({self._message_number: message})
+
+            self.schedule_next_message(self.QUICK_SEND)
 
 
 

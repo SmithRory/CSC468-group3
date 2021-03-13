@@ -59,12 +59,13 @@ def create_worker_thread(client, i: int, workers: list):
 
 def balancer_consume_thread(communication):
     consumer = Consumer(
-            communication=communication,
-            connection_param="rabbitmq",
-            exchange_name=os.environ["FRONTEND_EXCHANGE"],
-            queue_name="frontend",
-            routing_key="frontend"
-        )
+        communication=communication,
+        buffer_limit=50000,
+        connection_param="rabbitmq",
+        exchange_name=os.environ["FRONTEND_EXCHANGE"],
+        queue_name="frontend",
+        routing_key="frontend"
+    )
     consumer.run() 
 
 def confirms_thread(workers, runtime_data):
@@ -116,14 +117,14 @@ def main():
         communication=communication,
         runtime_data=runtime_data
     )
-    balancer.run()
+    balancer.setup()
 
     global EXIT_PROGRAM
     while not EXIT_PROGRAM:
         if communication.length > 0:
             balancer.balance()
-        else:
-            time.sleep(0.1)
+        # else:
+        time.sleep(1.0)
 
         sys.stdout.flush()
         
