@@ -44,11 +44,18 @@ class Publisher():
     def on_channel_open(self, channel):
         print(f"{self._connection_param}: on_channel_open")
         self._channel = channel
-        # self._channel.add_on_close_callback(self.on_channel_closed)
+        self._channel.add_on_close_callback(self.on_channel_closed)
+        
         cb = functools.partial(
             self.on_exchange_declareok, userdata=self._exchange
         )
         self._channel.exchange_declare(exchange=self._exchange, callback=cb)
+
+    def on_channel_closed(self, channel, reason):
+        print(f"Connection closed: {reason}")
+        self._channel = None
+        if not self._stopping:
+            self._connection.close()
 
     def on_exchange_declareok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_exchange_declareok")

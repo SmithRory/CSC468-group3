@@ -11,4 +11,4 @@ COPY logfile.xsd /app
 COPY src/ /app
 
 CMD ["python3", "main.py"]
-#CMD ["python3", "-m", "cProfile", "-o", "stats", "main.py"]
+# CMD ["python3", "-m", "cProfile", "-o", "stats", "main.py"]

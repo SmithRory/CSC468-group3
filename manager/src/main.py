@@ -23,6 +23,40 @@ def exit_gracefully(self, signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
+def create_worker_thread(client, i: int, workers: list):
+    route_key = f"worker_queue_{i}"
+    server_name = f"worker_{i}"
+    result = client.containers.run(
+        image="csc468-group3_worker",
+        name=server_name,
+        detach=True,
+        auto_remove=True,
+        #extra_hosts={"quoteserver.seng.uvic.ca":"192.168.4.2"},
+        #ports={"4444":"4444"},
+        network="csc468-group3_custom_network",
+        environment={
+            "ROUTE_KEY": route_key,
+            "SERVER_NAME": server_name,
+            "BACKEND_EXCHANGE": os.environ["BACKEND_EXCHANGE"],
+            "CONFIRMS_EXCHANGE": os.environ["CONFIRMS_EXCHANGE"],
+            "QUOTE_SERVER_PORT": os.environ["QUOTE_SERVER_PORT"],
+            "MONGODB_DATABASE": os.environ["MONGODB_DATABASE"],
+            "MONGODB_USERNAME": os.environ["MONGODB_USERNAME"],
+            "MONGODB_PASSWORD": os.environ["MONGODB_PASSWORD"],
+            "MONGODB_HOSTNAME": os.environ["MONGODB_HOSTNAME"]
+        }
+    )
+    
+    print(f"Started worker container...\n\tID: {result.id}\n\tName: {result.name}")
+    sys.stdout.flush()
+
+    workers[i] = Worker(
+        container_id=result.id,
+        commands=[],
+        route_key=route_key
+    )
+
+
 def balancer_consume_thread(communication):
     consumer = Consumer(
             communication=communication,
@@ -42,7 +76,8 @@ def confirms_thread(workers, runtime_data):
 
 def main():
     client = docker.DockerClient(base_url='unix://var/run/docker.sock')
-    workers = []
+    WANTED_WORKERS = int(os.environ["NUM_WORKERS"])
+    workers = [None for _ in range(WANTED_WORKERS)]
 
     ''' Stopping worker created by docker-compose since it dosent work well
     having it in out system. This wouldent have to be done if Docker
@@ -51,39 +86,15 @@ def main():
     init_worker_container = client.containers.get("worker")
     init_worker_container.stop()
 
-    WANTED_WORKERS = int(os.environ["NUM_WORKERS"])
+    t_workers = []
     for i in range(0, WANTED_WORKERS):
-        route_key = f"worker_queue_{i}"
-        server_name = f"worker_{i}"
-        result = client.containers.run(
-            image="csc468-group3_worker",
-            name=server_name,
-            detach=True,
-            auto_remove=True,
-            #extra_hosts={"quoteserver.seng.uvic.ca":"192.168.4.2"},
-            #ports={"4444":"4444"},
-            network="csc468-group3_custom_network",
-            environment={
-                "ROUTE_KEY": route_key,
-                "SERVER_NAME": server_name,
-                "BACKEND_EXCHANGE": os.environ["BACKEND_EXCHANGE"],
-                "CONFIRMS_EXCHANGE": os.environ["CONFIRMS_EXCHANGE"],
-                "QUOTE_SERVER_PORT": os.environ["QUOTE_SERVER_PORT"],
-                "MONGODB_DATABASE": os.environ["MONGODB_DATABASE"],
-                "MONGODB_USERNAME": os.environ["MONGODB_USERNAME"],
-                "MONGODB_PASSWORD": os.environ["MONGODB_PASSWORD"],
-                "MONGODB_HOSTNAME": os.environ["MONGODB_HOSTNAME"]
-            }
-        )
-        
-        print(f"Started worker container...\n\tID: {result.id}\n\tName: {result.name}")
-        sys.stdout.flush()
+        t_workers.append(threading.Thread(target=create_worker_thread, args=(client, i, workers)))
+    
+    for w in t_workers:
+        w.start()
 
-        workers.append(Worker(
-            container_id=result.id,
-            commands=[],
-            route_key=route_key
-        ))
+    for w in t_workers:
+        w.join()
 
     communication = ThreadCommunication(
         buffer=[],
