@@ -20,7 +20,7 @@ class RuntimeData:
 @dataclass
 class ThreadCommunication:
     buffer: list
-    is_empty: bool
+    length: int
     mutex: threading.Lock
 
 # @dataclass

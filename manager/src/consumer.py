@@ -1,4 +1,5 @@
 import pika
+import time
 import functools
 
 ''' Encapsulates Rabbitmq interactions.
@@ -8,6 +9,8 @@ as that is the order they are called by Rabbitmq.
 
 '''
 class Consumer():
+    MAX_BUFFER_LENGTH = 100000
+
     def __init__(self, connection_param, exchange_name, queue_name, routing_key, communication=None, call_on_callback=None):
         self._connection = None
         self._channel = None
@@ -65,7 +68,7 @@ class Consumer():
         cb = functools.partial(self.on_queue_declareok, userdata=self._queue_name)
         self._channel.queue_declare(
             queue=self._queue_name,
-            arguments={"x-queue-mode": "lazy"},
+            # arguments={"x-queue-mode": "lazy"},
             callback=cb
         )
 
@@ -82,7 +85,7 @@ class Consumer():
     def on_bindok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_bindok")
         self._channel.basic_qos(
-            prefetch_count=1000, callback=self.on_basic_qos_ok
+            prefetch_count=1, callback=self.on_basic_qos_ok
         )
 
     def on_basic_qos_ok(self, _unused_frame):
@@ -97,10 +100,17 @@ class Consumer():
     def queue_callback(self, ch, method, properties, body):
         data = body.decode()
         if self.communication is not None:
-            self.communication.buffer.append(data)
-            self.communication.is_empty = False
+            while(self.communication.length >= self.MAX_BUFFER_LENGTH):
+                time.sleep(1)
+
+            with self.communication.mutex:
+                self.communication.buffer.append(data)
+                self.communication.length += 1
+
         if self._call_on_callback is not None:
             self._call_on_callback(data)
+
+        # self._channel.basic_ack(delivery_tag=method.delivery_tag)
     
     def stop(self):
         self._stopping = True
