@@ -51,7 +51,7 @@ def main():
         length=0,
         mutex=Lock()
     )
-    command_handler = CMDHandler(response_publisher=publisher)
+    command_handler = CMDHandler(response_publisher=publisher, redis_cache=redis_cache)
 
     t_consumer = Thread(target=queue_thread, args=(communication,))
     t_consumer.start()
