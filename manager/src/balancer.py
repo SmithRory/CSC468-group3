@@ -8,6 +8,7 @@ import os
 import pika
 import sys
 import random
+import hashlib
 
 class Balancer():
     def __init__(self, workers, communication, runtime_data):
@@ -20,7 +21,7 @@ class Balancer():
         self._total_commands_seen = 0
         self.runtime_data = runtime_data
         self._prev_active_commands = 0
-        self._PRINT_PERIOD = 5.0 # Seconds
+        self._PRINT_PERIOD = 10.0 # Seconds
 
         self._send_address = "rabbitmq"
         self.publish_communication = None
@@ -30,7 +31,7 @@ class Balancer():
     ''' Connects to frontend and backend rabbit queue
     and then begins listening for incoming commands. 
     '''
-    def run(self):
+    def setup(self):
         self.publish_communication = ThreadCommunication(
             buffer = [],
             length=0,
@@ -59,47 +60,35 @@ class Balancer():
             self.communication.buffer = []
             self.communication.length = 0
 
-        # print(f"Length of buffer: {len(self._send_buffer)}")
-
+        start = time.time()
         for message in self._send_buffer:
             self._total_commands_seen = self._total_commands_seen + 1
             routing_key = None
             command = parse_command(message)
 
             if command.command == "DUMPLOG":
-                self.publish_communication.is_empty = False
                 while self.runtime_data.active_commands != 0:
-                    time.sleep(2)
+                    time.sleep(5)
                 routing_key = "worker_queue_0"
                 print("Sent DUMPLOG to worker_queue_0")
             else:
-                worker_index = abs(hash(command.uid)) % self._NUM_WORKERS
+                worker_index = hashlib.sha256(command.uid.encode('utf-8')).digest()
+                worker_index = int.from_bytes(worker_index, byteorder='big', signed=False) % self._NUM_WORKERS
+
                 routing_key = self.workers[worker_index].route_key
                 with self.runtime_data.mutex:
                     self.runtime_data.active_commands += 1
-                # self.workers[worker_index].commands.append(command.number)
 
             with self.publish_communication.mutex:
                 self.publish_communication.buffer.append((routing_key, message))
                 self.publish_communication.length += 1
 
-        self.publish_communication.is_empty = False
+        print(f"balance() took {time.time()-start} to process {len(self._send_buffer)} commands")
 
     ''' Removes users from user_ids list if they havent been seen for USER_TIMEOUT.
     Also prints current activity for all workers and users.
     '''
     def print_status(self):
-        # total_length = 0
-        # for worker in self.workers:
-        #     worker_len = len(worker.commands)
-        #     total_length = total_length + worker_len
-        #     if worker_len > 0:
-        #         print(worker)
-        
-        # print(f"Total active commands: {self.runtime_data.active_commands}")
-        # print(f"TPS: {(self._prev_active_commands-self.runtime_data.active_commands)/self._PRINT_PERIOD}")
-        # print(f"Total commands seen: {self._total_commands_seen}")
-
         print("Active: {:>10} | Total: {:>10} | TPS: {:>10} |".format(
             self.runtime_data.active_commands, 
             self._total_commands_seen,

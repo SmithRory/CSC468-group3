@@ -23,7 +23,8 @@ from cmd_handler import CMDHandler
 # in a gracefull way. Main loop will only exit after a completed iteration
 # so that every service can shut down properly.
 EXIT_PROGRAM = False
-def exit_gracefully(self, signum, frame):
+# def exit_gracefully(self, signum, frame):
+def exit_gracefully(self, signum):
     global EXIT_PROGRAM
     EXIT_PROGRAM = True
 signal.signal(signal.SIGINT, exit_gracefully)
@@ -69,7 +70,7 @@ def main():
             sys.stdout.flush()
         
         else:
-            time.sleep(0.1)    
+            time.sleep(1.0)    
 
 
     t_consumer.join()

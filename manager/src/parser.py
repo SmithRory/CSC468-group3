@@ -16,8 +16,9 @@ def parse_command(command: str) -> Command:
     if len(tokens) < 2:
         return Command(number=-1, command='', uid='', params=[])
 
-    number = re.findall(".*?\[(.*)].*", tokens[0])
-    number = int(number[0])
+    # number = re.findall(".*?\[(.*)].*", tokens[0])
+    # number = int(number[0])
+    number = 0 # We dont use the number anymore
     command = tokens[0].split(']')[1]
 
     if command == "DUMPLOG" and len(tokens) < 3:

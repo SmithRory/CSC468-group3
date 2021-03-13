@@ -9,13 +9,12 @@ as that is the order they are called by Rabbitmq.
 
 '''
 class Consumer():
-    MAX_BUFFER_LENGTH = 100000
-
-    def __init__(self, connection_param, exchange_name, queue_name, routing_key, communication=None, call_on_callback=None):
+    def __init__(self, connection_param, exchange_name, queue_name, routing_key, communication=None, buffer_limit = 0, call_on_callback=None):
         self._connection = None
         self._channel = None
         self._stopping = False
         self.communication = communication
+        self._MAX_BUFFER_LENGTH = buffer_limit
         self._connection_param = connection_param
         self._exchange_name = exchange_name
         self._queue_name = queue_name
@@ -59,9 +58,15 @@ class Consumer():
     def on_channel_open(self, channel):
         print(f"{self._connection_param}: on_channel_open")
         self._channel = channel
-
+        self._channel.add_on_close_callback(self.on_channel_closed)
+        
         cb = functools.partial(self.on_exchange_declareok, userdata=self._exchange_name)
         self._channel.exchange_declare(exchange=self._exchange_name, callback=cb)
+
+    def on_channel_closed(self, channel, reason):
+        print(f"Connection closed: {reason}")
+        self._channel = None
+        # self._connection.close()
 
     def on_exchange_declareok(self, _unused_frame, userdata):
         print(f"{self._connection_param}: on_exchange_declareok")
@@ -100,8 +105,8 @@ class Consumer():
     def queue_callback(self, ch, method, properties, body):
         data = body.decode()
         if self.communication is not None:
-            while(self.communication.length >= self.MAX_BUFFER_LENGTH):
-                time.sleep(1)
+            while(self.communication.length >= self._MAX_BUFFER_LENGTH):
+                time.sleep(0.5)
 
             with self.communication.mutex:
                 self.communication.buffer.append(data)
