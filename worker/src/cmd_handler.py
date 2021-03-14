@@ -1,5 +1,6 @@
 from database.accounts import Accounts, Stocks, AutoTransaction
 from database.logs import get_logs, AccountTransactionType, UserCommandType, SystemEventType, ErrorEventType, DebugType
+from database.user_cache import add_user
 from mongoengine import DoesNotExist
 from rabbitmq.publisher import Publisher
 from threading import Timer
@@ -11,9 +12,8 @@ import decimal
 import time
 import traceback
 
-# TODO: perform atomic updates instead of querying document, modifying it, and then saving it
-
 # TODO: turn dictionaries into cache 
+
 
 class CMDHandler:
 
@@ -74,8 +74,8 @@ class CMDHandler:
             user.available = user.available + amount
             user.save()
 
-            # Add user_id to cache
-            self.redis_cache.sadd('user_ids', user_id)
+            # Add to cache
+            add_user(user_id=user_id)
 
             # Log new user.
             DebugType().log(transactionNum=transactionNum, command="ADD", username=user_id, debugMessage=f"Creating user {user_id}.")
@@ -946,8 +946,8 @@ class CMDHandler:
                 response = func(transactionNum, params)
         except Exception as e:
             response = f"[{transactionNum}] Error (ExceptionThrown): {e}\n\tCommands: {cmd}\n\tParameters: {params}"
-            #print(response)
-            #print(f"Traceback:\n{traceback.format_exc()}")
+            print(response)
+            print(f"Traceback:\n{traceback.format_exc()}")
             ErrorEventType().log(transactionNum=transactionNum, command="UNKNOWN_COMMAND", errorMessage=response)
 
         # Send the response back.

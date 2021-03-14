@@ -28,17 +28,17 @@ class UserPollingStocks:
         ''' Returns a list of all keys. '''
         return list(self.user_polling_stocks)
 
-    def get_last_info(self, stock_symbol):
-        '''
+    def get_last_info(self, stock_symbol) -> list:
+        """
         Returns a list containing:
             last transaction number [0],
             last command [1],
             last userid [2]
-        '''
-        transNum = self.user_polling_stocks[stock_symbol]['lastTransNum']
+        """
+        transaction_num = self.user_polling_stocks[stock_symbol]['lastTransNum']
         command = self.user_polling_stocks[stock_symbol]['lastCommand']
         user = self.user_polling_stocks[stock_symbol]['lastUser']
-        return list((transNum, command, user))
+        return list((transaction_num, command, user))
 
     def remove_if_empty(self, stock_symbol):
         '''
@@ -96,13 +96,14 @@ class UserPollingStocks:
             auto_transactions['lastUser'] = user_id
 
     def get_autosell_users(self, stock_symbol):
-        ''' Returns a list of all users with an autosell setup. '''
+        """ Returns a list of all users with an autosell setup. """
         return list(self.user_polling_stocks[stock_symbol]['auto_sell'])
 
+
 class QuotePollingThread(threading.Thread):
-    '''
+    """
     Polls the stocks prices and triggers any auto sell/buy transactions when necessary.
-    '''
+    """
 
     def __init__(self, quote_polling, polling_rate, response_publisher, redis_cache):
         threading.Thread.__init__(self)
@@ -142,7 +143,7 @@ class QuotePollingThread(threading.Thread):
         # Perform auto buy for all the users.
         for user in auto_buy_users:
             user_id = user.user_id
-            transactionNum = self.quote_polling.get_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
+            transactionNum = self.quote_polling.get_user_autobuy(user_id=user_id, stock_symbol=stock_symbol)
 
             if transactionNum is None:
                 # Error
@@ -155,7 +156,7 @@ class QuotePollingThread(threading.Thread):
         # Perform auto sell for all the users.
         for user in auto_sell_users:
             user_id = user.user_id
-            transactionNum = self.quote_polling.get_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
+            transactionNum = self.quote_polling.get_user_autosell(user_id=user_id, stock_symbol=stock_symbol)
             
             if transactionNum is None:
                 # Error
