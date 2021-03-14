@@ -17,9 +17,12 @@ import traceback
 
 class CMDHandler:
 
-    def __init__(self, response_publisher : Publisher):
+    def __init__(self, response_publisher : Publisher, redis_cache):
         # Response publisher.
         self.response_publisher = response_publisher
+
+        # Redis cache
+        self.redis_cache = redis_cache
 
         # Auto-buy.
         self.uncommitted_buys = {} # which users have a pending buy, and the transaction info
@@ -33,9 +36,10 @@ class CMDHandler:
         # Quote polling for auto buy/sell.
         self.POLLING_RATE = 120 # 120 seconds
         self.quote_polling = quote_polling.UserPollingStocks()
-        self.polling_thread = quote_polling.QuotePollingThread(quote_polling = self.quote_polling, polling_rate = self.POLLING_RATE, response_publisher = response_publisher)
+        self.polling_thread = quote_polling.QuotePollingThread(quote_polling = self.quote_polling, polling_rate = self.POLLING_RATE, response_publisher = response_publisher, redis_cache = redis_cache)
         self.polling_thread.setDaemon(True) # Will be cleaned up on exit.
         self.polling_thread.start()
+
 
     # params: user_id, amount
     def add(self, transactionNum, params) -> str:
@@ -46,7 +50,7 @@ class CMDHandler:
         # Get the user
         # Note: user.account will return a 'float' if the user
         # has not been created, and 'decimal.Decimal` if they have been.
-        if Accounts().user_exists(user_id):
+        if self.redis_cache.sismember('user_ids',user_id):
             
             # Update the account.
             update = {
@@ -70,6 +74,9 @@ class CMDHandler:
             user.available = user.available + amount
             user.save()
 
+            # Add user_id to cache
+            self.redis_cache.sadd('user_ids', user_id)
+
             # Log new user.
             DebugType().log(transactionNum=transactionNum, command="ADD", username=user_id, debugMessage=f"Creating user {user_id}.")
 
@@ -81,6 +88,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol
     def quote(self, transactionNum, params) -> str:
 
@@ -89,19 +97,20 @@ class CMDHandler:
 
         UserCommandType().log(transactionNum=transactionNum, command="QUOTE", username=user_id, stockSymbol=stock_symbol)
 
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="QUOTE", errorMessage=err_msg)
             return err_msg
 
         # Get the quote from the stock server
-        value = quote.get_quote(user_id, stock_symbol, transactionNum, "QUOTE")
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "QUOTE", self.redis_cache)
 
         # Forward the quote to the frontend so the user can see it
         ok_msg = f"[{transactionNum}] {stock_symbol} has value ${value:.2f}."
         #print(ok_msg)
         return ok_msg
+
 
     # params: user_id, stock_symbol, amount
     def buy(self, transactionNum, params) -> str:
@@ -113,14 +122,14 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="BUY", errorMessage=err_msg)
             return err_msg
 
         # Get a quote for the stock the user wants to buy
-        value = quote.get_quote(user_id, stock_symbol, transactionNum, "BUY")
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "BUY", self.redis_cache)
 
         # Find the number of stocks the user can buy
         num_stocks = floor(max_debt/value) # Ex. max_dept=$100,value=$15per/stock-> num_stocks=6
@@ -155,6 +164,9 @@ class CMDHandler:
         # Add the uncommitted buy to the list.
         uncommitted_buy = {user_id: {'stock': stock_symbol, 'num_stocks': num_stocks, 'quote': value, 'amount': max_debt}}
         self.uncommitted_buys.update(uncommitted_buy)
+
+
+
         
         # Cancel any previous timers for this user. There can only be one pending buy at a time.
         previous_timer = self.uncommitted_buy_timers.pop(user_id, None)
@@ -163,7 +175,7 @@ class CMDHandler:
             DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, debugMessage="Previous BUY timer cancelled for this user.")
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.buy_timeout_handler, [transactionNum, user_id]) # 60 seconds
+        commit_timer = Timer(60.0, self.cancel_buy, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_buy_timers.update({user_id: commit_timer})
         DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, debugMessage="New BUY timer started for the user.")
@@ -173,42 +185,6 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
-    # Gets called when a BUY command has timed out (no COMMIT or CANCEL).
-    def buy_timeout_handler(self, transactionNum, user_id):
-
-        DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, debugMessage="BUY command has timed out.")
-
-        # Remove the timer
-        timer = self.uncommitted_buy_timers.pop(user_id, None)
-        if timer is not None:
-            timer.cancel()
-            DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, debugMessage="BUY command has timed out")
-        
-        # Remove the pending buy
-        users_buy = self.uncommitted_buys.pop(user_id, None)
-        if users_buy is None:
-            # Something weird has happened. A buy should not timeout when there is no uncommitted buy command.
-            err_msg = f"[{transactionNum}] Error: BUY command has timed out for user {user_id}, but no uncommitted buy was found."
-            ErrorEventType(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage=err_msg)
-            self.send_response(err_msg)
-            return
-
-        # Free the reserved funds.
-        ret = Accounts.objects(pk=user_id).update_one(inc__available=decimal.Decimal(users_buy['num_stocks'] * users_buy['quote']))
-
-        # Check the update succeeded.
-        if ret != 1:
-            err_msg = f"[{transactionNum}] Error: Failed to update account {user_id}."
-            #print(err_msg)
-            ErrorEventType().log(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage=err_msg)
-            self.send_response(err_msg)
-            return
-        
-        # Re-issue the buy command.
-        self.buy(transactionNum=transactionNum, params=[user_id, users_buy['stock'], users_buy['amount']])
-        response_msg = f"[{transactionNum}] BUY command has timed out and will be re-issued."
-        DebugType().log(transactionNum=transactionNum, command="BUY", username=user_id, debugMessage=response_msg)
-        self.send_response(response_msg)
 
     # params: user_id
     def commit_buy(self, transactionNum, params) -> str:
@@ -218,7 +194,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="COMMIT_BUY", username=user_id)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="COMMIT_BUY", errorMessage=err_msg)
@@ -274,6 +250,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: transactionNum, user_id
     def cancel_buy(self, transactionNum, params) -> str:
         
@@ -282,7 +259,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_BUY", username=user_id)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             #print(err_msg)
@@ -318,6 +295,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol, amount
     def sell(self, transactionNum, params) -> str:
 
@@ -328,7 +306,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SELL", errorMessage=err_msg)
@@ -336,7 +314,7 @@ class CMDHandler:
             return err_msg
 
         # Get a quote for the stock the user wants to sell
-        value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL")
+        value = quote.get_quote(user_id, stock_symbol, transactionNum, "SELL", self.redis_cache)
 
         # Find the number of stocks the user owns.
         users_account = Accounts.objects(__raw__={'_id': user_id}).only('stocks').first()
@@ -387,7 +365,7 @@ class CMDHandler:
             DebugType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage="Previous SELL timer cancelled for this user")
 
         # Created a new timer to timeout when a COMMIT or CANCEL has not been issued.
-        commit_timer = Timer(60.0, self.sell_timeout_handler, [transactionNum, user_id]) # 60 seconds
+        commit_timer = Timer(60.0, self.cancel_sell, [transactionNum, user_id]) # 60 seconds
         commit_timer.start()
         self.uncommitted_sell_timers.update({user_id: commit_timer})
         DebugType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount, debugMessage="New SELL timer started for this user")
@@ -400,43 +378,6 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
-    # Gets called when a SELL command has timed out (no COMMIT or CANCEL).
-    def sell_timeout_handler(self, transactionNum, user_id):
-
-        # Remove the timer.
-        timer = self.uncommitted_sell_timers.pop(user_id, None)
-        if timer is not None:
-            timer.cancel()
-            DebugType().log(transactionNum=transactionNum, command="SELL", username=user_id, debugMessage="SELL command has timed out")
-
-        # Remove the pending sell.
-        users_sell = self.uncommitted_sells.pop(user_id, None)
-        if users_sell is None:
-            # Something weird has happened. A buy should not timeout when there is no uncommitted buy command.
-            err_msg = f"[{transactionNum}] Error: SELL command has timed out for user {user_id}, but no uncommitted sell was found."
-            ErrorEventType(transactionNum=transactionNum, command="BUY", username=user_id, errorMessage=err_msg)
-            #print(err_msg)
-            self.send_response(err_msg)
-            return
-
-        # Free the reserved stocks.
-        ret = Accounts.objects(pk=user_id, stocks__symbol=users_sell['stock']).update_one(inc__stocks__S__available=decimal.Decimal(users_sell['num_stocks']))
-        # Check the update succeeded.
-        if ret != 1:
-            err_msg = f"[{transactionNum}] Error: (SellTimeout) Failed to free reserved stocks for {user_id}."
-            #print(err_msg)
-            ErrorEventType().log(transactionNum=transactionNum, command="SELL", username=user_id, errorMessage=err_msg)
-            self.send_response(err_msg)
-            return
-
-        # Notify the user their SELL has expired.
-        ok_msg = f"[{transactionNum}] The SELL command has expired and will be re-issued."
-        #print(ok_msg)
-        self.send_response(ok_msg)
-
-        # Re-issue the SELL command.
-        self.sell(transactionNum = transactionNum, params = [user_id, users_sell['stock'], users_sell['amount']])
-        DebugType().log(transactionNum=transactionNum, command="SELL", username=user_id, debugMessage=ok_msg)
 
     # params: user_id
     def commit_sell(self, transactionNum, params) -> str:
@@ -446,7 +387,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="COMMIT_SELL", username=user_id)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="COMMIT_SELL", errorMessage=err_msg)
@@ -490,6 +431,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: user_id
     def cancel_sell(self, transactionNum, params) -> str:
 
@@ -498,7 +440,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SELL", username=user_id)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SELL", errorMessage=err_msg)
@@ -535,6 +477,7 @@ class CMDHandler:
         DebugType().log(transactionNum=transactionNum, command="CANCEL_SELL", username=user_id, debugMessage=ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol, amount
     def set_buy_amount(self, transactionNum, params) -> str:
 
@@ -545,7 +488,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(buy_amount))
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", errorMessage=err_msg)
@@ -600,6 +543,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol, amount
     def set_buy_trigger(self, transactionNum, params) -> str:
 
@@ -610,7 +554,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", errorMessage=err_msg)
@@ -660,6 +604,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol
     def cancel_set_buy(self, transactionNum, params) -> str:
 
@@ -669,7 +614,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SET_BUY", errorMessage=err_msg)
@@ -712,6 +657,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol, amount
     def set_sell_amount(self, transactionNum, params) -> str:
 
@@ -722,7 +668,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(sell_amount))
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", errorMessage=err_msg)
@@ -766,6 +712,7 @@ class CMDHandler:
         DebugType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(sell_amount), debugMessage=ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol, amount
     def set_sell_trigger(self, transactionNum, params) -> str:
 
@@ -776,7 +723,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", errorMessage=err_msg)
@@ -834,6 +781,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: user_id, stock_symbol
     def cancel_set_sell(self, transactionNum, params) -> str:
 
@@ -843,7 +791,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
-        if not Accounts().user_exists(user_id=user_id):
+        if not self.redis_cache.sismember('user_ids',user_id):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SET_SELL", errorMessage=err_msg)
@@ -911,6 +859,7 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     # params: filename, user_id(optional)
     def dumplog(self, transactionNum, params) -> str:
 
@@ -925,6 +874,7 @@ class CMDHandler:
         ok_msg = f"[{transactionNum}] Successfully wrote logs to {filename}."
         #print(ok_msg)
         return ok_msg
+
 
     # params: user_id
     def display_summary(self, transactionNum, params) -> str:
@@ -947,11 +897,13 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
+
     def unknown_cmd(self, transactionNum, cmd) -> str:
         err_msg = f"[{transactionNum}] Error: Unknown Command. {cmd}"
         ErrorEventType().log(transactionNum=transactionNum, command="UNKNOWN_COMMAND", errorMessage=err_msg)
         #print(err_msg)
         return err_msg
+
 
     def send_response(self, response_msg: str):
         '''
@@ -960,6 +912,7 @@ class CMDHandler:
         Ex. When a BUY times out, this needs to be sent to the manager.
         '''
         self.response_publisher.send(response_msg)
+
 
     def handle_command(self, transactionNum, cmd, params):
         
