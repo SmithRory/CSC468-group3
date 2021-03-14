@@ -40,7 +40,6 @@ class CMDHandler:
         self.polling_thread.setDaemon(True) # Will be cleaned up on exit.
         self.polling_thread.start()
 
-
     # params: user_id, amount
     def add(self, transactionNum, params) -> str:
         amount = params[1]
@@ -50,7 +49,7 @@ class CMDHandler:
         # Get the user
         # Note: user.account will return a 'float' if the user
         # has not been created, and 'decimal.Decimal` if they have been.
-        if self.redis_cache.sismember('user_ids',user_id):
+        if Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             
             # Update the account.
             update = {
@@ -62,7 +61,7 @@ class CMDHandler:
             # Check the update succeeded.
             if ret != 1:
                 err_msg = f"[{transactionNum}] Error: Failed to update account {user_id}."
-                #print(err_msg)
+                # print(err_msg)
                 ErrorEventType().log(transactionNum=transactionNum, command="ADD", username=user_id, errorMessage=err_msg)
                 return err_msg
 
@@ -75,7 +74,7 @@ class CMDHandler:
             user.save()
 
             # Add to cache
-            add_user(user_id=user_id)
+            add_user(user_id=user_id, redis_cache=self.redis_cache)
 
             # Log new user.
             DebugType().log(transactionNum=transactionNum, command="ADD", username=user_id, debugMessage=f"Creating user {user_id}.")
@@ -88,7 +87,6 @@ class CMDHandler:
         #print(ok_msg)
         return ok_msg
 
-
     # params: user_id, stock_symbol
     def quote(self, transactionNum, params) -> str:
 
@@ -97,7 +95,7 @@ class CMDHandler:
 
         UserCommandType().log(transactionNum=transactionNum, command="QUOTE", username=user_id, stockSymbol=stock_symbol)
 
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="QUOTE", errorMessage=err_msg)
@@ -122,7 +120,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="BUY", username=user_id, stockSymbol=stock_symbol, funds=max_debt)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="BUY", errorMessage=err_msg)
@@ -164,9 +162,6 @@ class CMDHandler:
         # Add the uncommitted buy to the list.
         uncommitted_buy = {user_id: {'stock': stock_symbol, 'num_stocks': num_stocks, 'quote': value, 'amount': max_debt}}
         self.uncommitted_buys.update(uncommitted_buy)
-
-
-
         
         # Cancel any previous timers for this user. There can only be one pending buy at a time.
         previous_timer = self.uncommitted_buy_timers.pop(user_id, None)
@@ -194,7 +189,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="COMMIT_BUY", username=user_id)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="COMMIT_BUY", errorMessage=err_msg)
@@ -259,7 +254,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_BUY", username=user_id)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             #print(err_msg)
@@ -306,7 +301,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SELL", username=user_id, stockSymbol=stock_symbol, funds=sell_amount)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SELL", errorMessage=err_msg)
@@ -387,7 +382,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="COMMIT_SELL", username=user_id)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="COMMIT_SELL", errorMessage=err_msg)
@@ -440,7 +435,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SELL", username=user_id)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SELL", errorMessage=err_msg)
@@ -488,7 +483,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(buy_amount))
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_AMOUNT", errorMessage=err_msg)
@@ -554,7 +549,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, stockSymbol=stock_symbol, funds=buy_trigger)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", errorMessage=err_msg)
@@ -614,7 +609,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SET_BUY", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SET_BUY", errorMessage=err_msg)
@@ -668,7 +663,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", username=user_id, stockSymbol=stock_symbol, funds=decimal.Decimal(sell_amount))
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_AMOUNT", errorMessage=err_msg)
@@ -723,7 +718,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", errorMessage=err_msg)
@@ -791,7 +786,7 @@ class CMDHandler:
         UserCommandType().log(transactionNum=transactionNum, command="CANCEL_SET_SELL", username=user_id, stockSymbol=stock_symbol)
 
         # Check if the user exists.
-        if not self.redis_cache.sismember('user_ids',user_id):
+        if not Accounts().user_exists(user_id=user_id, redis_cache=self.redis_cache):
             # Invalid command.
             err_msg = f"[{transactionNum}] Error: User {user_id} does not exist."
             ErrorEventType().log(transactionNum=transactionNum, command="CANCEL_SET_SELL", errorMessage=err_msg)

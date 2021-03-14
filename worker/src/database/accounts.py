@@ -28,10 +28,10 @@ class Accounts(me.Document):
     auto_sell = me.EmbeddedDocumentListField(AutoTransaction, default=[])
 
     @staticmethod
-    def user_exists(user_id) -> bool:
+    def user_exists(user_id, redis_cache) -> bool:
         """Checks if the user is in the database."""
         # Check cache first
-        if user_cache.user_exists(user_id=user_id):
+        if user_cache.user_exists(user_id=user_id, redis_cache=redis_cache):
             return True
         else:
             # Check db.

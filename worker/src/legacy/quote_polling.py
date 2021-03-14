@@ -130,7 +130,7 @@ class QuotePollingThread(threading.Thread):
         info = self.quote_polling.get_last_info(stock_symbol)
 
         # Get the current stock price.
-        value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1], redisHost = self.redis_cache)
+        value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1], redis_cache = self.redis_cache)
 
         # Get all users that have an auto buy trigger equal to or less than the quote value.
         auto_buy_users = Accounts.objects(__raw__={"_id": {"$in": self.quote_polling.get_autobuy_users(stock_symbol)}, "auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
