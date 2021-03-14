@@ -14,7 +14,7 @@ class UserPollingStocks:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self.user_polling_stocks = {} 
+        self.user_polling_stocks = {}
         ''' user_polling_stocks format
         { 'stock_symbol' : { 
             'auto_buy': {'user1':2, 'user2':50}, # key is the user_id, value is the transactionNumber
@@ -35,9 +35,15 @@ class UserPollingStocks:
             last command [1],
             last userid [2]
         """
-        transaction_num = self.user_polling_stocks[stock_symbol]['lastTransNum']
-        command = self.user_polling_stocks[stock_symbol]['lastCommand']
-        user = self.user_polling_stocks[stock_symbol]['lastUser']
+        try:
+            transaction_num = self.user_polling_stocks[stock_symbol]['lastTransNum']
+            command = self.user_polling_stocks[stock_symbol]['lastCommand']
+            user = self.user_polling_stocks[stock_symbol]['lastUser']
+        except Exception as e:
+            print(f"ERROR: Failed to get last transaction info for stock {stock_symbol}")
+            print(f"Exception: {e}")
+            print(f"user_polling_stocks:\n{self.user_polling_stocks}")
+            return []
         return list((transaction_num, command, user))
 
     def remove_if_empty(self, stock_symbol):
@@ -128,6 +134,10 @@ class QuotePollingThread(threading.Thread):
     def quote_update_handler(self, stock_symbol):
         # Get the most up-to-date command information for logging purposes.
         info = self.quote_polling.get_last_info(stock_symbol)
+
+        # Check if an error happened.
+        if not info:
+            return
 
         # Get the current stock price.
         value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1], redis_cache = self.redis_cache)
