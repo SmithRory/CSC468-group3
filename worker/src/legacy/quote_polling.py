@@ -40,9 +40,7 @@ class UserPollingStocks:
             command = self.user_polling_stocks[stock_symbol]['lastCommand']
             user = self.user_polling_stocks[stock_symbol]['lastUser']
         except Exception as e:
-            print(f"ERROR: Failed to get last transaction info for stock {stock_symbol}")
-            print(f"Exception: {e}")
-            print(f"user_polling_stocks:\n{self.user_polling_stocks}")
+            print(f"ExceptionThrown: {e}\nERROR: Failed to get last transaction info for stock {stock_symbol}\nuser_polling_stocks:\n{self.user_polling_stocks}")
             return []
         return list((transaction_num, command, user))
 
