@@ -9,6 +9,7 @@ import pika
 import sys
 import random
 import hashlib
+from functools import wraps
 
 class Balancer():
     def __init__(self, workers, communication, runtime_data):
@@ -72,8 +73,7 @@ class Balancer():
                 routing_key = "worker_queue_0"
                 print("Sent DUMPLOG to worker_queue_0")
             else:
-                worker_index = hashlib.sha256(command.uid.encode('utf-8')).digest()
-                worker_index = int.from_bytes(worker_index, byteorder='big', signed=False) % self._NUM_WORKERS
+                worker_index = calculate_worker_index(command.uid, self._NUM_WORKERS)
 
                 routing_key = self.workers[worker_index].route_key
                 with self.runtime_data.mutex:
@@ -114,3 +114,24 @@ class Balancer():
                     return False
 
         return True
+
+''' Decorator that caches result of function depending on args
+and returns result if its in the cache rather than running 
+the function again
+'''
+def memo(f):
+    cache = {}
+
+    @wraps(f)
+    def wrap(*arg):
+        if arg not in cache:
+            cache['arg'] = f(*arg)
+        return cache['arg']
+    
+    return wrap
+
+@memo
+def calculate_worker_index(uid: str, NUM_WORKERS: int):
+    worker_index = hashlib.sha256(uid.encode('utf-8')).digest()
+    worker_index = int.from_bytes(worker_index, byteorder='big', signed=False) % NUM_WORKERS
+    return worker_index
