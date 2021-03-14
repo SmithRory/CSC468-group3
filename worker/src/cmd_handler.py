@@ -996,8 +996,8 @@ class CMDHandler:
                 response = func(transactionNum, params)
         except Exception as e:
             response = f"[{transactionNum}] Error (ExceptionThrown): {e}\n\tCommands: {cmd}\n\tParameters: {params}"
-            #print(response)
-            #print(f"Traceback:\n{traceback.format_exc()}")
+            print(response)
+            print(f"Traceback:\n{traceback.format_exc()}")
             ErrorEventType().log(transactionNum=transactionNum, command="UNKNOWN_COMMAND", errorMessage=response)
 
         # Send the response back.
