@@ -1,36 +1,22 @@
-import redis
-from datetime import timedelta
-
-# from dataclasses import dataclass
-# import time
-
-''' This is a temporary replacement for Reddis cache
-for use in the 1 user workload test only. Going forward
-Reddis will be implemented and replace this file.
-'''
-
-# @dataclass
-# class Quote:
-#     stock_name: str
-#     value: float
-#     timestamp: float
+# param:
+#       stock_symbol : String value of upto three letters For e.g., ABC
+#       stock_price : The value of the stock
+#       quoteServerTime : The time when the stock_price was received, this is for calculating the expiry time
+#       redisHost : The redis host the worker is connected to
+# returns:
+#       stock_price : value of the stock
 #
-# cache = {} # {stock_name: Quote}
-# UPDATE_FREQ = 4 # Values are outdated after 4 seconds
-
-
-def add(stock_symbol, stock_price, quoteServerTime):
-    r = redis.Redis(host='redishost')
-    r.set(stock_symbol, stock_price)
-    r.expire(stock_symbol, (int(quoteServerTime)+1000))
+def add(stock_symbol, stock_price, quoteServerTime, redisHost):
+    redisHost.set(stock_symbol, stock_price)
+    redisHost.expire(stock_symbol, (int(quoteServerTime)+1000))
 
 # param:
 #       stock_symbol : String value of upto three letters For e.g., ABC
+#       redisHost : The redis host the worker is connected to
 # returns:
 #       stock_price : value of the stock
-def get(stock_symbol):
-    r = redis.Redis(host='redishost')
-    stock_price = r.get(stock_symbol)
+def get(stock_symbol, redisHost):
+    stock_price = redisHost.get(stock_symbol)
     if stock_price:
         stock_price = float(stock_price)
     return stock_price

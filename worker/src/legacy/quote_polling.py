@@ -104,11 +104,12 @@ class QuotePollingThread(threading.Thread):
     Polls the stocks prices and triggers any auto sell/buy transactions when necessary.
     '''
 
-    def __init__(self, quote_polling, polling_rate, response_publisher):
+    def __init__(self, quote_polling, polling_rate, response_publisher, redis_cache):
         threading.Thread.__init__(self)
         self.quote_polling = quote_polling
         self.polling_rate = polling_rate
         self.response_publisher = response_publisher
+        self.redis_cache = redis_cache
 
     def run(self):
         while True:
@@ -128,7 +129,7 @@ class QuotePollingThread(threading.Thread):
         info = self.quote_polling.get_last_info(stock_symbol)
 
         # Get the current stock price.
-        value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1])
+        value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1], redisHost = self.redis_cache)
 
         # Get all users that have an auto buy trigger equal to or less than the quote value.
         auto_buy_users = Accounts.objects(__raw__={"_id": {"$in": self.quote_polling.get_autobuy_users(stock_symbol)}, "auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')

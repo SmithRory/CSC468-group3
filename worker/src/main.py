@@ -13,6 +13,7 @@ import signal
 import pika
 import queue
 from threading import Thread, Lock
+import redis
 from rabbitmq.consumer import Consumer
 from rabbitmq.publisher import Publisher
 from rabbitmq.ThreadCommunication import ThreadCommunication
@@ -44,12 +45,14 @@ def main():
     publisher = Publisher()
     publisher.setup_communication()
 
+    redis_cache = redis.Redis(host='redishost')
+
     communication = ThreadCommunication(
         buffer=[],
         length=0,
         mutex=Lock()
     )
-    command_handler = CMDHandler(response_publisher=publisher)
+    command_handler = CMDHandler(response_publisher=publisher, redis_cache=redis_cache)
 
     t_consumer = Thread(target=queue_thread, args=(communication,))
     t_consumer.start()
@@ -68,10 +71,9 @@ def main():
                 command_handler.handle_command(result[0], result[1], result[2])
 
             sys.stdout.flush()
-        
-        else:
-            time.sleep(1.0)    
 
+        else:
+            time.sleep(0.1)
 
     t_consumer.join()
 
