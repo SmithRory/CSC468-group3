@@ -73,9 +73,7 @@ class UserPollingStocks:
 
     def get_autobuy_users(self, stock_symbol):
         ''' Returns a list of all users with an autobuy setup. '''
-        autobuy_users = self.user_polling_stocks[stock_symbol]['auto_buy']
-        print(f"AutoBuyUsers: {autobuy_users}")
-        return list(autobuy_users)
+        return list(self.user_polling_stocks[stock_symbol]['auto_buy'])
 
     def get_user_autosell(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
@@ -134,11 +132,11 @@ class QuotePollingThread(threading.Thread):
 
         # Get all users that have an auto buy trigger equal to or less than the quote value.
         auto_buy_users = Accounts.objects(__raw__={"_id": {"$in": self.quote_polling.get_autobuy_users(stock_symbol)}, "auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
-        print(f"AUTO_BUY_USERS: {auto_buy_users.to_json()}")
+        #print(f"AUTO_BUY_USERS: {auto_buy_users.to_json()}")
 
         # Get all users that have an auto sell trigger equal to or greater than the quote value.
         auto_sell_users = Accounts.objects(__raw__={"_id": {"$in": self.quote_polling.get_autosell_users(stock_symbol)}, "auto_sell": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$gte": value}}}}).only('user_id')
-        print(f"AUTO_SELL_USERS: {auto_buy_users.to_json()}")
+        #print(f"AUTO_SELL_USERS: {auto_buy_users.to_json()}")
 
         # Perform auto buy for all the users.
         for user in auto_buy_users:
