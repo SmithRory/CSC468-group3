@@ -95,9 +95,9 @@ def get_logs():
     json_data = "{ \"userCommand\": " + UserCommandType.objects.exclude("id").to_json() + ","
     json_data += "\"quoteServer\" : " + QuoteServerType.objects.exclude("id").to_json() + ","
     json_data += "\"accountTransaction\" : " + AccountTransactionType.objects.exclude("id").to_json() + ","
-    json_data += "\"systemEvent\" : " + SystemEventType.objects.exclude("id").to_json() + ","
-    json_data += "\"errorEvent\" : " + ErrorEventType.objects.exclude("id").to_json() + ","
-    json_data += "\"debugEvent\" : " + DebugType.objects.exclude("id").to_json()
+    json_data += "\"systemEvent\" : " + SystemEventType.objects.exclude("id").to_json()# + ","
+    # json_data += "\"errorEvent\" : " + ErrorEventType.objects.exclude("id").to_json() + ","
+    # json_data += "\"debugEvent\" : " + DebugType.objects.exclude("id").to_json()
     json_data += "}"
     
     return json_data
