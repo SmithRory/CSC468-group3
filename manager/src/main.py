@@ -31,8 +31,8 @@ def create_worker_thread(client, i: int, workers: list):
         name=server_name,
         detach=True,
         auto_remove=True,
-        #extra_hosts={"quoteserver.seng.uvic.ca":"192.168.4.2"},
-        #ports={"4444":"4444"},
+        extra_hosts={"quoteserver.seng.uvic.ca":"192.168.4.2"},
+        ports={f"{4444+i}":f"{4444+i}"},
         network="csc468-group3_custom_network",
         environment={
             "ROUTE_KEY": route_key,
