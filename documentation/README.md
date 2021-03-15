@@ -32,7 +32,7 @@ Once the VM has been setup, workloads can be run.
 - `docker kill <container name>` to remove a container (helpful for killing workers spun up by the manager)
 - `sudo docker container stop $(sudo docker ps -a -q)`
 - `sudo docker cp <containerID>:/app/testLOG ./testLOG`
-
+- `grep --only-matching '<username>.[a-zA-Z0-9]*</username>' logfilename | sort --unique | wc -l` to find the number of users
 ## MongoDB
 
 - Running as a local instance in a container
