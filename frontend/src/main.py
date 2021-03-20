@@ -47,3 +47,37 @@ def amountNeeded(command):
     if command in commands:
         return jsonify({'need' : False})
     return jsonify({'need' : True})
+
+
+
+'''
+Create publisher and consumer in their own thread. They each have a connection
+to rabbitmq only because sharing one between them would require a large rewright
+of their code.
+
+consume_queue = queue.Queue()
+publish_queue = queue.Queue()
+
+consumer = Consumer(
+    queue=consume_queue,
+    connection_param="rabbitmq",
+    exchange_name=os.environ["CONFIRMS_EXCHANGE"],
+    queue_name="frontend",
+    routing_key="frontend"
+)
+
+self.publisher = Publisher(
+    connection_param=self._send_address,
+    exchange_name=os.environ["FRONTEND_EXCHANGE"],
+    queue = publish_queue
+)
+
+Then in each thread call .run()
+This is a blocking call
+
+you can then get or put using:
+consume_queue.put(data) and publish_queue.get() from the main thread
+
+Note that both of these calls are fully thread safe and can block
+
+'''

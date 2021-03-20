@@ -8,9 +8,9 @@ import time
 from consumer import Consumer
 from balancer import Balancer
 from confirms import Confirms
-from worker import Worker
-from worker import RuntimeData
-from worker import ThreadCommunication
+from dataclasses import Worker
+from dataclasses import RuntimeData
+from dataclasses import ThreadCommunication
 
 
 # Handles exiting when SIGTERM (sent by ^C input) is received 

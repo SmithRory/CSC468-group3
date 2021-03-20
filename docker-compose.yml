@@ -2,11 +2,11 @@ version: "3.7"
 
 services:
 
-  # flask:
-  #   build: frontend
-  #   container_name: flask
-#      ports:
-#        - 5000:5000
+  flask:
+    build: frontend
+    container_name: flask
+    ports:
+      - 5000:5000
   # networks:
     # - custom_network
   #   restart: always
@@ -15,14 +15,14 @@ services:
   #   environment: 
   #     - BACKEND_PORT=${BACKEND_PORT}
     
-  # nginx:
-  #   build: nginx
-  #   container_name: nginx
-  # networks:
-    # - custom_network
-  #   restart: always
-  #   ports:
-  #     - 80:80
+  nginx:
+    build: nginx
+    container_name: nginx
+    networks:
+      - custom_network
+    restart: always
+    ports:
+      - 80:80
 
   manager:
     build: manager
