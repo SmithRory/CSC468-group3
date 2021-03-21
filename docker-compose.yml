@@ -9,6 +9,9 @@ services:
       - 5000:5000
     networks:
       - custom_network
+    environment:
+      - FRONTEND_EXCHANGE=${FRONTEND_EXCHANGE}
+      - CONFIRMS_EXCHANGE=${CONFIRMS_EXCHANGE}
   #   restart: always
   #   expose:
   #     - 8080
@@ -69,8 +72,8 @@ services:
     ports:
      - 5672:5672
      - 15672:15672
-    logging:
-      driver: "none"
+#    logging:
+#      driver: "none"
 
   mongodb:
     image: mongo
