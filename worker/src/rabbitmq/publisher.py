@@ -81,7 +81,11 @@ class RabbitPublisher():
         cb = functools.partial(
             self.on_exchange_declareok, userdata=self._exchange
         )
-        self._channel.exchange_declare(exchange=self._exchange, callback=cb)
+        self._channel.exchange_declare(
+            exchange=self._exchange,
+            callback=cb,
+            exchange_type='fanout'
+        )
 
     def on_channel_closed(self, channel, reason):
         print(f"Connection closed: {reason}")

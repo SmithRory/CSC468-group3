@@ -72,8 +72,8 @@ services:
     ports:
      - 5672:5672
      - 15672:15672
-#    logging:
-#      driver: "none"
+    logging:
+      driver: "none"
 
   mongodb:
     image: mongo

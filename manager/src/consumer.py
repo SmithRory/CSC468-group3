@@ -9,11 +9,12 @@ as that is the order they are called by Rabbitmq.
 
 '''
 class Consumer():
-    def __init__(self, connection_param, exchange_name, queue_name, routing_key, communication=None, buffer_limit = 0, call_on_callback=None):
+    def __init__(self, connection_param, exchange_name, queue_name, routing_key, exchange_type='direct', communication=None, buffer_limit = 0, call_on_callback=None):
         self._connection = None
         self._channel = None
         self._stopping = False
         self.communication = communication
+        self._exchange_type = exchange_type
         self._MAX_BUFFER_LENGTH = buffer_limit
         self._connection_param = connection_param
         self._exchange_name = exchange_name
@@ -61,7 +62,11 @@ class Consumer():
         self._channel.add_on_close_callback(self.on_channel_closed)
         
         cb = functools.partial(self.on_exchange_declareok, userdata=self._exchange_name)
-        self._channel.exchange_declare(exchange=self._exchange_name, callback=cb)
+        self._channel.exchange_declare(
+            exchange=self._exchange_name,
+            callback=cb,
+            exchange_type=self._exchange_type
+        )
 
     def on_channel_closed(self, channel, reason):
         print(f"Connection closed: {reason}")

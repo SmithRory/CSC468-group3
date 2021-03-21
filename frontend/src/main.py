@@ -63,14 +63,17 @@ def api(command, user_id, stock_symbol=None, amount=None):
 
     threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,)).start()
     threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
+    print("Started pub/sub threads")
 
     # TO DO
     # send requested_command to rabbitmq
     consume_queue.put(requested_command)
+    print(f"Sent command {requested_command}")
 
     # TO DO
     # receive confirmation from rabbitmq and store the confirmation text in message
     message = publish_queue.get()
+    print(f"Recv command {requested_command}")
 #     message = requested_command # this message rn just displays the command
 
     # pass confirmation to form page and display the form page again
