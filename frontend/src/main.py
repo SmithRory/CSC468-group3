@@ -4,7 +4,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, DecimalField, SelectField
 from wtforms.validators import DataRequired, Length
 
-import temp
+import rabbit_threads
 import uuid
 import queue
 import threading
@@ -61,8 +61,8 @@ def api(command, user_id, stock_symbol=None, amount=None):
     consume_queue = queue.Queue()
     publish_queue = queue.Queue()
 
-    threading.Thread(target=temp.consumer_thread, args=(consume_queue,)).start()
-    threading.Thread(target=temp.publisher_thread, args=(publish_queue,), daemon=True).start()
+    threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,)).start()
+    threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
 
     # TO DO
     # send requested_command to rabbitmq
