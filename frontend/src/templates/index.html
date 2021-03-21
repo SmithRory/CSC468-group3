@@ -20,6 +20,12 @@ Day Trading App
     <div class="row">
         <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
 
+            {% if message %}
+                <div class="alert alert-info" role="alert">
+                    {{message}}
+                </div>
+            {% endif %}
+
             <h1 class="pt-5 pb-2">Day Trading!</h1>
 
             <p class="lead">Manage your day trading account here</p>

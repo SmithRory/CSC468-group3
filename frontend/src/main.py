@@ -10,25 +10,57 @@ flask_app = Flask(__name__)
 flask_app.config['SECRET_KEY'] = 'thisisarandomstringofcharacters'
 Bootstrap(flask_app)
 
-class NameForm(FlaskForm):
+class Form(FlaskForm):
     command = SelectField('Choose an action you want to perform', id="userCommand", validators=[DataRequired()], choices=["ADD", "QUOTE", "BUY", "COMMIT_BUY", "CANCEL_BUY", "SELL", "COMMIT_SELL", "CANCEL_SELL", "SET_BUY_AMOUNT", "CANCEL_SET_BUY", "SET_BUY_TRIGGER", "SET_SELL_AMOUNT", "SET_SELL_TRIGGER", "CANCEL_SET_SELL", "DISPLAY_SUMMARY"])
     userId = StringField('What is your user id?', id="user_id", validators=[DataRequired()])
     stockSymbol = StringField('What stock do you want to trade?', id="stock_symbol", validators=[Length(min=1, max=3)])
     amount = DecimalField('Enter the amount of money you want to trade for (Please include cents)', id="funds", validators=[])
     submit = SubmitField('Submit')
 
+
+
 @flask_app.route("/", methods = ['POST', 'GET'])
-def hellx():
-    form = NameForm()
+@flask_app.route("/<message>", methods = ['POST', 'GET'])
+def homepage(message=None):
+    form = Form()
 
     if form.is_submitted():
-        result = request.form
-        #TODO
-        # add the result data to the rabbit queue or manager
-        return render_template('user.html', result=result)
+        command=form.command.data
+        user_id=form.userId.data
+        stock_symbol=form.stockSymbol.data
+        amount=form.amount.data
+        print(command, user_id, stock_symbol, amount)
+
+    # if not formatted right, throw error
+
+        return redirect( url_for('api', command=command, user_id=user_id, stock_symbol=stock_symbol, amount=amount) )
+
     else:
-        return render_template('index.html', form=form, message="INVALIDDDD")
-    return render_template('index.html', form=form, message="message")
+        return render_template('index.html', form=form, message=message)
+    return render_template('index.html', form=form, message=message)
+
+
+@flask_app.route("/api/<command>/<user_id>/")
+@flask_app.route("/api/<command>/<user_id>/<stock_symbol>")
+@flask_app.route("/api/<command>/<user_id>/<amount>")
+@flask_app.route("/api/<command>/<user_id>/<stock_symbol>/<amount>")
+def api(command, user_id, stock_symbol=None, amount=None):
+    requested_command = "[1] " + command + "," + user_id
+    if stock_symbol:
+        requested_command += "," + stock_symbol
+    if amount:
+        requested_command += "," + amount
+
+    # TO DO
+    # send requested_command to rabbitmq
+
+    # TO DO
+    # receive confirmation from rabbitmq and store the confirmation text in message
+
+    message = requested_command # this message rn just displays the command
+
+    # pass confirmation to form page and display the form page again
+    return redirect( url_for('homepage', message=message))
 
 
 @flask_app.route("/stockSymbol/<command>")
@@ -47,7 +79,6 @@ def amountNeeded(command):
     if command in commands:
         return jsonify({'need' : False})
     return jsonify({'need' : True})
-
 
 
 '''
