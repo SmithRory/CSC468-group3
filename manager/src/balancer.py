@@ -2,7 +2,7 @@ import threading
 from parser import Command, parse_command
 from publisher import Publisher
 from threading import Thread, Timer, Lock
-from worker import ThreadCommunication
+from dataclassesfile import ThreadCommunication
 import time
 import os
 import pika

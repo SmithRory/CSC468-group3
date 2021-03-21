@@ -1,7 +1,7 @@
 from flask import Flask, render_template, redirect, url_for, request, jsonify
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, DecimalField, SelectField,
+from wtforms import StringField, SubmitField, DecimalField, SelectField
 from wtforms.validators import DataRequired, Length
 
 flask_app = Flask(__name__)
