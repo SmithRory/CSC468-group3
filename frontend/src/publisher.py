@@ -65,7 +65,7 @@ class Publisher():
         """This method will enable delivery confirmations and schedule the
         first message to be sent to RabbitMQ
         """
-        print(f"{self._connection_param}: Issuing consumer related RPC commands")
+        print(f"{self._connection_param}: Publisher Issuing consumer related RPC commands")
         # self._channel.confirm_delivery(self.on_delivery_confirmation)
         self.schedule_next_message(self.SLOW_SEND)
 

@@ -61,7 +61,11 @@ class Consumer():
         self._channel.add_on_close_callback(self.on_channel_closed)
         
         cb = functools.partial(self.on_exchange_declareok, userdata=self._exchange_name)
-        self._channel.exchange_declare(exchange=self._exchange_name, callback=cb)
+        self._channel.exchange_declare(
+            exchange=self._exchange_name,
+            callback=cb,
+            exchange_type='fanout'
+        )
 
     def on_channel_closed(self, channel, reason):
         print(f"Connection closed: {reason}")
