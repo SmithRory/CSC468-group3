@@ -17,6 +17,7 @@ class Confirms():
             call_on_callback=self.on_receive,
             connection_param=self._recv_address,
             exchange_name=os.environ["CONFIRMS_EXCHANGE"],
+            exchange_type='fanout',
             queue_name="confirm",
             routing_key="confirm"
         )

@@ -17,6 +17,7 @@ The following steps are needed to get the software running in the VM provided by
 5. Install pip3: `sudo apt install python3-pip`
 6. Install pika: `sudo pip3 install pika`
 7. Run the server: `sudo docker-compose up --build`
+8. To clean everything up: `sudo ./clean.sh`
 
 ### Running Workloads
 Once the VM has been setup, workloads can be run.

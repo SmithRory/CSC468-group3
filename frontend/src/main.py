@@ -2,41 +2,62 @@ from flask import Flask, render_template, redirect, url_for, request, jsonify
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, DecimalField, SelectField
-from wtforms.validators import DataRequired, Length
+from wtforms.validators import DataRequired, Length, Optional
+
+import rabbit_threads
+import uuid
+import queue
+import threading
+import time
 
 flask_app = Flask(__name__)
+
+# *** CONFIGURATION start *******************************************
 
 # Flask-WTF requires an encryption key
 flask_app.config['SECRET_KEY'] = 'thisisarandomstringofcharacters'
 Bootstrap(flask_app)
 
+# RabbitMQ Queues
+consume_queue = queue.Queue()  # Global
+publish_queue = queue.Queue()  # Global
+threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,)).start()
+threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
+
+# Transaction Number
+transaction_num = 0  # Global
+
+# *** CONFIGURATION end *********************************************
+
+
 class Form(FlaskForm):
-    command = SelectField('Choose an action you want to perform', id="userCommand", validators=[DataRequired()], choices=["ADD", "QUOTE", "BUY", "COMMIT_BUY", "CANCEL_BUY", "SELL", "COMMIT_SELL", "CANCEL_SELL", "SET_BUY_AMOUNT", "CANCEL_SET_BUY", "SET_BUY_TRIGGER", "SET_SELL_AMOUNT", "SET_SELL_TRIGGER", "CANCEL_SET_SELL", "DISPLAY_SUMMARY"])
+    command = SelectField('Choose an action you want to perform', id="userCommand", validators=[DataRequired()],
+                          choices=["BUY", "ADD", "QUOTE", "COMMIT_BUY", "CANCEL_BUY", "SELL", "COMMIT_SELL",
+                                   "CANCEL_SELL", "SET_BUY_AMOUNT", "CANCEL_SET_BUY", "SET_BUY_TRIGGER",
+                                   "SET_SELL_AMOUNT", "SET_SELL_TRIGGER", "CANCEL_SET_SELL", "DISPLAY_SUMMARY"])
     userId = StringField('What is your user id?', id="user_id", validators=[DataRequired()])
-    stockSymbol = StringField('What stock do you want to trade?', id="stock_symbol", validators=[Length(min=1, max=3)])
-    amount = DecimalField('Enter the amount of money you want to trade for (Please include cents)', id="funds", validators=[])
+    stockSymbol = StringField('What stock do you want to trade?', id="stock_symbol",
+                              validators=[Optional(), Length(min=1, max=3)])
+    amount = DecimalField('Enter the amount of money you want to trade for (Please include cents)', id="funds",
+                          validators=[Optional()])
     submit = SubmitField('Submit')
 
 
-
-@flask_app.route("/", methods = ['POST', 'GET'])
-@flask_app.route("/<message>", methods = ['POST', 'GET'])
+@flask_app.route("/", methods=['POST', 'GET'])
+@flask_app.route("/<message>", methods=['POST', 'GET'])
 def homepage(message=None):
     form = Form()
 
-    if form.is_submitted():
-        command=form.command.data
-        user_id=form.userId.data
-        stock_symbol=form.stockSymbol.data
-        amount=form.amount.data
+    if form.validate_on_submit():
+        command = form.command.data
+        user_id = form.userId.data
+        stock_symbol = form.stockSymbol.data
+        amount = form.amount.data
+
         print(command, user_id, stock_symbol, amount)
 
-    # if not formatted right, throw error
+        return redirect(url_for('api', command=command, user_id=user_id, stock_symbol=stock_symbol, amount=amount))
 
-        return redirect( url_for('api', command=command, user_id=user_id, stock_symbol=stock_symbol, amount=amount) )
-
-    else:
-        return render_template('index.html', form=form, message=message)
     return render_template('index.html', form=form, message=message)
 
 
@@ -45,40 +66,38 @@ def homepage(message=None):
 @flask_app.route("/api/<command>/<user_id>/<amount>")
 @flask_app.route("/api/<command>/<user_id>/<stock_symbol>/<amount>")
 def api(command, user_id, stock_symbol=None, amount=None):
-    requested_command = "[1] " + command + "," + user_id
+    global consume_queue
+    global publish_queue
+    global transaction_num
+
+    requested_command = f"[{transaction_num}] {command},{user_id}"
+    transaction_num += 1
+
     if stock_symbol:
-        requested_command += "," + stock_symbol
+        requested_command = f"{requested_command},{stock_symbol}"
+
     if amount:
-        requested_command += "," + amount
+        requested_command = f"{requested_command},{amount}"
 
-    # TO DO
+    print(requested_command)
+
     # send requested_command to rabbitmq
+    print("\nSending command to the publish queue...")
+    publish_queue.put(requested_command)
+    print(f"Successfully sent command to publish queue: {requested_command}.")
+    print(f"Total number of items in publish queue: {publish_queue.qsize()}\n")
 
-    # TO DO
     # receive confirmation from rabbitmq and store the confirmation text in message
-
-    message = requested_command # this message rn just displays the command
+    print("Waiting to get response from consume queue...")
+    print(f"Total number of items in the consume queue: {consume_queue.qsize()}")
+    message = consume_queue.get()
+    print(f"Received response from consume queue:"
+          f"\n\tOriginal Command: {requested_command}"
+          f"\n\tReceived Message: {message}\n")
+    #     message = requested_command # this message rn just displays the command
 
     # pass confirmation to form page and display the form page again
-    return redirect( url_for('homepage', message=message))
-
-
-@flask_app.route("/stockSymbol/<command>")
-def stockSymbolNeeded(command):
-    commands = ["COMMIT_BUY", "CANCEL_BUY", "COMMIT_SELL", "CANCEL_SELL", "DISPLAY_SUMMARY"]
-
-    if command in commands:
-        return jsonify({'need' : True})
-    return jsonify({'need' : False})
-
-
-@flask_app.route("/amount/<command>")
-def amountNeeded(command):
-    commands = ["ADD", "BUY", "SELL", "SET_BUY_AMOUNT", "SET_SELL_AMOUNT", "SET_BUY_TRIGGER", "SET_SELL_TRIGGER"]
-
-    if command in commands:
-        return jsonify({'need' : False})
-    return jsonify({'need' : True})
+    return redirect(url_for('homepage', message=message))
 
 
 '''

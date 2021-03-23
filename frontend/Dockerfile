@@ -12,7 +12,7 @@ COPY uwsgi.ini /app
 
 CMD ["uwsgi", \
      "--manage-script-name", \
-     "--mount", "/=main:app", \
+     "--mount", "/=main:flask_app", \
      "uwsgi.ini"]
 
 
