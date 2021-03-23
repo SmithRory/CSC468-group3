@@ -17,6 +17,7 @@ def consumer_thread(consume_queue):
     )
 
     consumer.run()
+    print("Successfully started up the consumer thread.")
 
 
 def publisher_thread(publish_queue):
@@ -24,7 +25,8 @@ def publisher_thread(publish_queue):
     publisher = Publisher(
         connection_param="rabbitmq",
         exchange_name=os.environ["FRONTEND_EXCHANGE"],
-        queue = publish_queue
+        queue=publish_queue
     )
 
     publisher.run()
+    print("Successfully started up the publisher thread.")

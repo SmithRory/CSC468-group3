@@ -12,9 +12,23 @@ import time
 
 flask_app = Flask(__name__)
 
+# *** CONFIGURATION start *******************************************
+
 # Flask-WTF requires an encryption key
 flask_app.config['SECRET_KEY'] = 'thisisarandomstringofcharacters'
 Bootstrap(flask_app)
+
+# RabbitMQ Queues
+consume_queue = queue.Queue()  # Global
+publish_queue = queue.Queue()  # Global
+threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,)).start()
+threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
+
+# Transaction Number
+transaction_num = 0  # Global
+
+# *** CONFIGURATION end *********************************************
+
 
 class Form(FlaskForm):
     command = SelectField('Choose an action you want to perform', id="userCommand", validators=[DataRequired()],
@@ -25,22 +39,21 @@ class Form(FlaskForm):
     submit = SubmitField('Submit')
 
 
-@flask_app.route("/", methods = ['POST', 'GET'])
-@flask_app.route("/<message>", methods = ['POST', 'GET'])
+@flask_app.route("/", methods=['POST', 'GET'])
+@flask_app.route("/<message>", methods=['POST', 'GET'])
 def homepage(message=None):
     form = Form()
 
-    if form.is_submitted():
-        command=form.command.data
-        user_id=form.userId.data
-        stock_symbol=form.stockSymbol.data
-        amount=form.amount.data
+    if form.validate_on_submit():
+        command = form.command.data
+        user_id = form.userId.data
+        stock_symbol = form.stockSymbol.data
+        amount = form.amount.data
+
         print(command, user_id, stock_symbol, amount)
 
-        return redirect( url_for('api', command=command, user_id=user_id, stock_symbol=stock_symbol, amount=amount) )
+        return redirect(url_for('api', command=command, user_id=user_id, stock_symbol=stock_symbol, amount=amount))
 
-    else:
-        return render_template('index.html', form=form, message=message)
     return render_template('index.html', form=form, message=message)
 
 
@@ -49,54 +62,33 @@ def homepage(message=None):
 @flask_app.route("/api/<command>/<user_id>/<amount>")
 @flask_app.route("/api/<command>/<user_id>/<stock_symbol>/<amount>")
 def api(command, user_id, stock_symbol=None, amount=None):
-    transactionNum = str(uuid.uuid1())
-    requested_command = "[" + transactionNum + "] " + command + "," + user_id
+    global consume_queue
+    global publish_queue
+    global transaction_num
+
+    requested_command = f"[{transaction_num}] {command},{user_id}"
+    transaction_num += 1
+
     if stock_symbol:
-        requested_command += "," + stock_symbol
+        requested_command = f"{requested_command},{stock_symbol}"
+
     if amount:
-        requested_command += "," + amount
+        requested_command = f"{requested_command},{amount}"
 
     print(requested_command)
 
-    consume_queue = queue.Queue()
-    publish_queue = queue.Queue()
-
-    threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,)).start()
-    threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
-    print("Started pub/sub threads")
-
-    # TO DO
     # send requested_command to rabbitmq
-    consume_queue.put(requested_command)
+    publish_queue.put(requested_command)
     print(f"Sent command {requested_command}")
 
-    # TO DO
     # receive confirmation from rabbitmq and store the confirmation text in message
-    message = publish_queue.get()
+    message = consume_queue.get()
     print(f"Recv command {requested_command}")
+    print(f"Received message: {message}")
 #     message = requested_command # this message rn just displays the command
 
     # pass confirmation to form page and display the form page again
-    return redirect( url_for('homepage', message=message))
-
-
-@flask_app.route("/stockSymbol/<command>")
-def stockSymbolNeeded(command):
-    commands = ["COMMIT_BUY", "CANCEL_BUY", "COMMIT_SELL", "CANCEL_SELL", "DISPLAY_SUMMARY", "ADD"]
-
-    if command in commands:
-        return jsonify({'need' : True})
-    return jsonify({'need' : False})
-
-
-@flask_app.route("/amount/<command>")
-def amountNeeded(command):
-    commands = ["ADD", "BUY", "SELL", "SET_BUY_AMOUNT", "SET_SELL_AMOUNT", "SET_BUY_TRIGGER", "SET_SELL_TRIGGER"]
-
-    if command in commands:
-        return jsonify({'need' : False})
-    return jsonify({'need' : True})
-
+    return redirect(url_for('homepage', message=message))
 
 '''
 Create publisher and consumer in their own thread. They each have a connection

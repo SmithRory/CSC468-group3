@@ -35,22 +35,16 @@ Day Trading App
             {{ wtf.quick_form(form) }}
 
             <script>
-                command_select = document.getElementById('userCommand');
-                command_select.onchange = function () {
-                    fetch('/stockSymbol/' + command_select.value).then(function (response) {
-                        response.json().then(function (data){
-                            console.log(command_select)
-                            console.table(data);
-                            document.getElementById('stock_symbol').disabled = data.need
-                        });
-                    });
-                    fetch('/amount/' + command_select.value).then(function (response) {
-                        response.json().then(function (data){
-                            console.log(command_select)
-                            console.table(data);
-                            document.getElementById('funds').disabled = data.need
-                        });
-                    });
+                document.getElementById("userCommand").addEventListener("change", updateRequiredFields);
+
+                var needsStockSymbol = {QUOTE: true, BUY: true, SELL: true, SET_BUY_AMOUNT: true, CANCEL_SET_BUY: true, SET_BUY_TRIGGER: true, SET_SELL_AMOUNT: true, SET_SELL_TRIGGER: true, CANCEL_SET_SELL: true};
+                var needsAmount = {ADD: true, BUY: true, SELL: true, SET_BUY_AMOUNT: true, SET_SELL_AMOUNT: true, SET_BUY_TRIGGER: true, SET_SElL_TRIGGER: true};
+
+                function updateRequiredFields() {
+                    var command = document.getElementById("userCommand").value;
+
+                    document.getElementById('stock_symbol').disabled = !(command in needsStockSymbol);
+                    document.getElementById('funds').disabled = !(command in needsAmount);
                 }
             </script>
 
