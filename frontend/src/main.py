@@ -27,7 +27,6 @@ threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), 
 # Transaction Number
 transaction_num = 0  # Global
 
-
 # *** CONFIGURATION end *********************************************
 
 
@@ -83,13 +82,18 @@ def api(command, user_id, stock_symbol=None, amount=None):
     print(requested_command)
 
     # send requested_command to rabbitmq
+    print("\nSending command to the publish queue...")
     publish_queue.put(requested_command)
-    print(f"Sent command {requested_command}")
+    print(f"Successfully sent command to publish queue: {requested_command}.")
+    print(f"Total number of items in publish queue: {publish_queue.qsize()}\n")
 
     # receive confirmation from rabbitmq and store the confirmation text in message
+    print("Waiting to get response from consume queue...")
+    print(f"Total number of items in the consume queue: {consume_queue.qsize()}")
     message = consume_queue.get()
-    print(f"Recv command {requested_command}")
-    print(f"Received message: {message}")
+    print(f"Received response from consume queue:"
+          f"\n\tOriginal Command: {requested_command}"
+          f"\n\tReceived Message: {message}\n")
     #     message = requested_command # this message rn just displays the command
 
     # pass confirmation to form page and display the form page again
