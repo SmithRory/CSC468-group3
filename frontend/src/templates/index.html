@@ -32,7 +32,38 @@ Day Trading App
 
             <p class="lead">Manage your day trading account here</p>
 
-            {{ wtf.quick_form(form) }}
+            <form action="" method="post" novalidate>
+                {{ form.hidden_tag() }}
+                <p>
+                    {{ form.userId.label }}<br>
+                    {{ form.userId() }}<br>
+                    {% for error in form.userId.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                </p>
+                <p>
+                    {{ form.command.label }}<br>
+                    {{ form.command() }}<br>
+                    {% for error in form.command.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                </p>
+                <p>
+                    {{ form.stockSymbol.label }}<br>
+                    {{ form.stockSymbol() }}<br>
+                    {% for error in form.stockSymbol.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                </p>
+                <p>
+                    {{ form.amount.label }}<br>
+                    {{ form.amount() }}<br>
+                    {% for error in form.amount.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                </p>
+                <p>{{ form.submit() }}</p>
+            </form>
 
             <script>
                 document.getElementById("userCommand").addEventListener("change", updateRequiredFields);

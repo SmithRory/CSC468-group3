@@ -2,7 +2,7 @@ from flask import Flask, render_template, redirect, url_for, request, jsonify
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, DecimalField, SelectField
-from wtforms.validators import DataRequired, Length
+from wtforms.validators import DataRequired, Length, Optional
 
 import rabbit_threads
 import uuid
@@ -27,15 +27,20 @@ threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), 
 # Transaction Number
 transaction_num = 0  # Global
 
+
 # *** CONFIGURATION end *********************************************
 
 
 class Form(FlaskForm):
     command = SelectField('Choose an action you want to perform', id="userCommand", validators=[DataRequired()],
-        choices=["BUY", "ADD", "QUOTE", "COMMIT_BUY", "CANCEL_BUY", "SELL", "COMMIT_SELL", "CANCEL_SELL", "SET_BUY_AMOUNT", "CANCEL_SET_BUY", "SET_BUY_TRIGGER", "SET_SELL_AMOUNT", "SET_SELL_TRIGGER", "CANCEL_SET_SELL", "DISPLAY_SUMMARY"])
+                          choices=["BUY", "ADD", "QUOTE", "COMMIT_BUY", "CANCEL_BUY", "SELL", "COMMIT_SELL",
+                                   "CANCEL_SELL", "SET_BUY_AMOUNT", "CANCEL_SET_BUY", "SET_BUY_TRIGGER",
+                                   "SET_SELL_AMOUNT", "SET_SELL_TRIGGER", "CANCEL_SET_SELL", "DISPLAY_SUMMARY"])
     userId = StringField('What is your user id?', id="user_id", validators=[DataRequired()])
-    stockSymbol = StringField('What stock do you want to trade?', id="stock_symbol", validators=[Length(min=1, max=3)])
-    amount = DecimalField('Enter the amount of money you want to trade for (Please include cents)', id="funds", validators=[])
+    stockSymbol = StringField('What stock do you want to trade?', id="stock_symbol",
+                              validators=[Optional(), Length(min=1, max=3)])
+    amount = DecimalField('Enter the amount of money you want to trade for (Please include cents)', id="funds",
+                          validators=[Optional()])
     submit = SubmitField('Submit')
 
 
@@ -85,10 +90,11 @@ def api(command, user_id, stock_symbol=None, amount=None):
     message = consume_queue.get()
     print(f"Recv command {requested_command}")
     print(f"Received message: {message}")
-#     message = requested_command # this message rn just displays the command
+    #     message = requested_command # this message rn just displays the command
 
     # pass confirmation to form page and display the form page again
     return redirect(url_for('homepage', message=message))
+
 
 '''
 Create publisher and consumer in their own thread. They each have a connection
