@@ -90,7 +90,7 @@ def api(command, user_id, stock_symbol=None, amount=None):
     # receive confirmation from rabbitmq and store the confirmation text in message
     print("Waiting to get response from consume queue...")
     print(f"Total number of items in the consume queue: {consume_queue.qsize()}")
-    message = consume_queue.get()
+    message = str(consume_queue.get())
     print(f"Received response from consume queue:"
           f"\n\tOriginal Command: {requested_command}"
           f"\n\tReceived Message: {message}\n")
