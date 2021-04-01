@@ -135,7 +135,7 @@ class RabbitPublisher():
 
                 self._channel.basic_publish(
                     exchange=self._exchange,
-                    routing_key=routing_key,
+                    routing_key="",#routing_key,
                     body=message,
                     properties=pika.BasicProperties(),
                     mandatory=True
