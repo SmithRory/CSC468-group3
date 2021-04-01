@@ -131,7 +131,7 @@ class RabbitPublisher():
 
             for data in self._publish_buffer:
                 routing_key = "confirm"
-                message = data[1]
+                message = data
 
                 self._channel.basic_publish(
                     exchange=self._exchange,

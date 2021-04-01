@@ -109,7 +109,10 @@ class Consumer():
     def queue_callback(self, ch, method, properties, body):
         data = body.decode()
         if self.queue is not None:
+            print("Adding data to frontend consumer queue")
+            print(data)
             self.queue.put(data)
+
         
         if self._call_on_callback is not None:
             self._call_on_callback(data)
