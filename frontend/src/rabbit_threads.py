@@ -14,7 +14,7 @@ def consumer_thread(consume_queue):
         exchange_name=os.environ["CONFIRMS_EXCHANGE"],
 #         exchange_type='fanout',
         queue_name="frontend_confirm",
-        routing_key="confirm"
+        routing_key=""
     )
 
     consumer.run()

@@ -21,11 +21,12 @@ Bootstrap(flask_app)
 # RabbitMQ Queues
 consume_queue = queue.Queue()  # Global
 publish_queue = queue.Queue()  # Global
-threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,)).start()
+threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,), daemon=True).start()
 threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
 
 # Transaction Number
 transaction_num = 1  # Global
+confirms_recv = 0
 
 # *** CONFIGURATION end *********************************************
 
@@ -69,6 +70,7 @@ def api(command, user_id, stock_symbol=None, amount=None):
     global consume_queue
     global publish_queue
     global transaction_num
+    global confirms_recv
 
     requested_command = f"[{transaction_num}] {command},{user_id}"
     transaction_num += 1
@@ -91,6 +93,8 @@ def api(command, user_id, stock_symbol=None, amount=None):
     print("Waiting to get response from consume queue...")
     print(f"Total number of items in the consume queue: {consume_queue.qsize()}")
     message = str(consume_queue.get())
+    confirms_recv += 1
+    print(f"Total confirms received: {confirms_recv}")
 #     message = "Sentttt"
     print(f"Received response from consume queue:"
           f"\n\tOriginal Command: {requested_command}"
