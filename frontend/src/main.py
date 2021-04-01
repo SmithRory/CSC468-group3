@@ -25,7 +25,7 @@ threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,)).s
 threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
 
 # Transaction Number
-transaction_num = 0  # Global
+transaction_num = 1  # Global
 
 # *** CONFIGURATION end *********************************************
 
@@ -91,13 +91,17 @@ def api(command, user_id, stock_symbol=None, amount=None):
     print("Waiting to get response from consume queue...")
     print(f"Total number of items in the consume queue: {consume_queue.qsize()}")
     message = str(consume_queue.get())
+#     message = "Sentttt"
     print(f"Received response from consume queue:"
           f"\n\tOriginal Command: {requested_command}"
           f"\n\tReceived Message: {message}\n")
+
     #     message = requested_command # this message rn just displays the command
 
     # pass confirmation to form page and display the form page again
-    return redirect(url_for('homepage', message=message))
+    x = url_for('homepage', message=message, _external=True)
+    print(f"url is {x}")
+    return redirect(x)
 
 
 '''

@@ -12,8 +12,9 @@ def consumer_thread(consume_queue):
         queue=consume_queue,
         connection_param="rabbitmq",
         exchange_name=os.environ["CONFIRMS_EXCHANGE"],
-        queue_name="frontend",
-        routing_key="frontend"
+#         exchange_type='fanout',
+        queue_name="frontend_confirm",
+        routing_key="confirm"
     )
 
     consumer.run()
