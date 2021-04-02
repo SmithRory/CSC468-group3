@@ -19,7 +19,7 @@ class Confirms():
             exchange_name=os.environ["CONFIRMS_EXCHANGE"],
             exchange_type='fanout',
             queue_name="confirm",
-            routing_key="confirm"
+            routing_key=""
         )
 
     def run(self):

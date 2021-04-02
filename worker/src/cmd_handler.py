@@ -84,7 +84,7 @@ class CMDHandler:
 
         # Notify the user
         ok_msg = f"[{transactionNum}] Successfully added ${amount:.2f} to account {user_id}."
-        #print(ok_msg)
+        print(ok_msg)
         return ok_msg
 
     # params: user_id, stock_symbol
@@ -106,7 +106,7 @@ class CMDHandler:
 
         # Forward the quote to the frontend so the user can see it
         ok_msg = f"[{transactionNum}] {stock_symbol} has value ${value:.2f}."
-        #print(ok_msg)
+        print(ok_msg)
         return ok_msg
 
 
@@ -946,4 +946,5 @@ class CMDHandler:
             ErrorEventType().log(transactionNum=transactionNum, command="UNKNOWN_COMMAND", errorMessage=response)
 
         # Send the response back.
+
         self.response_publisher.send(response)

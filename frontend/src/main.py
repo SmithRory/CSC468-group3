@@ -9,6 +9,8 @@ import uuid
 import queue
 import threading
 import time
+import os
+import pika
 
 flask_app = Flask(__name__)
 
@@ -19,13 +21,14 @@ flask_app.config['SECRET_KEY'] = 'thisisarandomstringofcharacters'
 Bootstrap(flask_app)
 
 # RabbitMQ Queues
-consume_queue = queue.Queue()  # Global
-publish_queue = queue.Queue()  # Global
-threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,)).start()
-threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
+# consume_queue = queue.Queue() 
+# publish_queue = queue.Queue()  
+# threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,), daemon=True).start()
+# threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,), daemon=True).start()
 
 # Transaction Number
-transaction_num = 0  # Global
+transaction_num = 1  # Global
+confirms_recv = 0
 
 # *** CONFIGURATION end *********************************************
 
@@ -66,9 +69,39 @@ def homepage(message=None):
 @flask_app.route("/api/<command>/<user_id>/<amount>")
 @flask_app.route("/api/<command>/<user_id>/<stock_symbol>/<amount>")
 def api(command, user_id, stock_symbol=None, amount=None):
-    global consume_queue
-    global publish_queue
+    #global consume_queue
+    #global publish_queue
     global transaction_num
+    global confirms_recv
+
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host="rabbitmq")
+    )
+    publisher_channel = connection.channel()
+    consume_channel = connection.channel()
+
+    publisher_channel.exchange_declare(
+        exchange=os.environ["FRONTEND_EXCHANGE"]
+    )
+
+    consume_channel.exchange_declare(
+        exchange=os.environ["CONFIRMS_EXCHANGE"],
+        exchange_type='fanout'
+    )
+
+    result = consume_channel.queue_declare(queue='')
+    queue_name = result.method.queue
+    consume_channel.queue_bind(
+        exchange=os.environ["CONFIRMS_EXCHANGE"],
+        queue=queue_name
+    )
+
+    # consume_queue = queue.Queue() 
+    # publish_queue = queue.Queue()  
+    # t_consume = threading.Thread(target=rabbit_threads.consumer_thread, args=(consume_queue,))
+    # t_publish = threading.Thread(target=rabbit_threads.publisher_thread, args=(publish_queue,))
+    # t_consume.start()
+    # t_publish.start()
 
     requested_command = f"[{transaction_num}] {command},{user_id}"
     transaction_num += 1
@@ -79,25 +112,43 @@ def api(command, user_id, stock_symbol=None, amount=None):
     if amount:
         requested_command = f"{requested_command},{amount}"
 
-    print(requested_command)
+    publisher_channel.basic_publish(
+        exchange=os.environ["FRONTEND_EXCHANGE"],
+        routing_key="frontend",
+        body=requested_command,
+        properties=pika.BasicProperties(),
+        mandatory=True
+    )
 
-    # send requested_command to rabbitmq
-    print("\nSending command to the publish queue...")
-    publish_queue.put(requested_command)
     print(f"Successfully sent command to publish queue: {requested_command}.")
-    print(f"Total number of items in publish queue: {publish_queue.qsize()}\n")
 
     # receive confirmation from rabbitmq and store the confirmation text in message
     print("Waiting to get response from consume queue...")
-    print(f"Total number of items in the consume queue: {consume_queue.qsize()}")
-    message = consume_queue.get()
+
+    message = None
+    while(message is None):
+        method_frame, header_frame, message = consume_channel.basic_get(queue=queue_name)
+
+    message = message.decode('utf-8')
+
+    confirms_recv += 1
+    print(f"Total confirms received: {confirms_recv}")
+#     message = "Sentttt"
     print(f"Received response from consume queue:"
           f"\n\tOriginal Command: {requested_command}"
           f"\n\tReceived Message: {message}\n")
+
     #     message = requested_command # this message rn just displays the command
 
     # pass confirmation to form page and display the form page again
-    return redirect(url_for('homepage', message=message))
+    x = url_for('homepage', message=message, _external=True)
+    print(f"url is {x}")
+
+    # t_publish.join()
+    # t_consume.join()
+    connection.close()
+
+    return redirect(x)
 
 
 '''
