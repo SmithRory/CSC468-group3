@@ -1,5 +1,6 @@
-{% extends 'bootstrap/base.html' %}
 {% import "bootstrap/wtf.html" as wtf %}
+
+{% extends "template.html" %}
 
 {% block styles %}
 {{ super() }}
@@ -10,7 +11,7 @@
 
 
 {% block title %}
-Day Trading App
+Day Trading - Overview
 {% endblock %}
 
 
@@ -20,44 +21,23 @@ Day Trading App
     <div class="row">
         <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
 
+            <h2>Welcome {{ current_user.id }}!</h2>
+
             {% if message %}
-                <div style="padding-top: 20px;">
-                    <div class="alert alert-info" role="alert">
-                         {{message}}
-                    </div>
+            <div style="padding-top: 20px;">
+                <div class="alert alert-info" role="alert">
+                    {{message}}
                 </div>
+            </div>
             {% endif %}
 
-            <h1 class="pt-5 pb-2">Day Trading!</h1>
-
-            <p class="lead">Manage your day trading account here</p>
-
-            <form action="" method="post" novalidate>
+            <br>
+            <h4>Deposit</h4>
+            <form action="{{ url_for('add_api') }}" method="post" novalidate>
                 {{ form.hidden_tag() }}
                 <p>
-                    {{ form.userId.label }}<br>
-                    {{ form.userId() }}<br>
-                    {% for error in form.userId.errors %}
-                    <span style="color: red;">[{{ error }}]</span>
-                    {% endfor %}
-                </p>
-                <p>
-                    {{ form.command.label }}<br>
-                    {{ form.command() }}<br>
-                    {% for error in form.command.errors %}
-                    <span style="color: red;">[{{ error }}]</span>
-                    {% endfor %}
-                </p>
-                <p>
-                    {{ form.stockSymbol.label }}<br>
-                    {{ form.stockSymbol() }}<br>
-                    {% for error in form.stockSymbol.errors %}
-                    <span style="color: red;">[{{ error }}]</span>
-                    {% endfor %}
-                </p>
-                <p>
                     {{ form.amount.label }}<br>
-                    {{ form.amount() }}<br>
+                    ${{ form.amount() }}<br>
                     {% for error in form.amount.errors %}
                     <span style="color: red;">[{{ error }}]</span>
                     {% endfor %}
@@ -65,19 +45,87 @@ Day Trading App
                 <p>{{ form.submit() }}</p>
             </form>
 
-            <script>
-                document.getElementById("userCommand").addEventListener("change", updateRequiredFields);
+            <h4>Account Summary</h4>
+            {% if account_summary %}
+            <p>
+                Account Balance: ${{ account_summary['account'] }}<br>
+                Available Funds: ${{ account_summary['available'] }}<br>
+            </p>
 
-                var needsStockSymbol = {QUOTE: true, BUY: true, SELL: true, SET_BUY_AMOUNT: true, CANCEL_SET_BUY: true, SET_BUY_TRIGGER: true, SET_SELL_AMOUNT: true, SET_SELL_TRIGGER: true, CANCEL_SET_SELL: true};
-                var needsAmount = {ADD: true, BUY: true, SELL: true, SET_BUY_AMOUNT: true, SET_SELL_AMOUNT: true, SET_BUY_TRIGGER: true, SET_SElL_TRIGGER: true};
+            <p class="lead">Stocks</p>
+            {% if account_summary['stocks']|length > 0 %}
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Available</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    {% for stock in account_summary['stocks'] %}
+                    <th scope="row">{{ stock['symbol'] }}</th>
+                    <td>{{ stock['amount'] }}</td>
+                    <td>{{ stock['available'] }}</td>
+                    {% endfor %}
+                </tr>
+                </tbody>
+            </table>
+            {% else %}
+            <p>No stocks have been purchased.</p>
+            {% endif %}
 
-                function updateRequiredFields() {
-                    var command = document.getElementById("userCommand").value;
 
-                    document.getElementById('stock_symbol').disabled = !(command in needsStockSymbol);
-                    document.getElementById('funds').disabled = !(command in needsAmount);
-                }
-            </script>
+            <p class="lead">Auto Buy Transactions</p>
+            {% if account_summary['auto_buy']|length > 0 %}
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Trigger ($)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    {% for stock in account_summary['auto_buy'] %}
+                    <th scope="row">{{ stock['symbol'] }}</th>
+                    <td>{{ stock['amount'] }}</td>
+                    <td>{{ stock['trigger'] }}</td>
+                    {% endfor %}
+                </tr>
+                </tbody>
+            </table>
+            {% else %}
+            <p>No automatic buy transactions have been setup.</p>
+            {% endif %}
+
+
+            <p class="lead">Auto Sell Transactions</p>
+            {% if account_summary['auto_sell']|length > 0 %}
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Trigger ($)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    {% for stock in account_summary['auto_sell'] %}
+                    <th scope="row">{{ stock['symbol'] }}</th>
+                    <td>{{ stock['amount'] }}</td>
+                    <td>{{ stock['trigger'] }}</td>
+                    {% endfor %}
+                </tr>
+                </tbody>
+            </table>
+            {% else %}
+            <p>No automatic sell transactions have been setup.</p>
+            {% endif %}
+            {% endif %}
 
         </div>
     </div>

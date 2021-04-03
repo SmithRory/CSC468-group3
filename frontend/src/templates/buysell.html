@@ -1,0 +1,78 @@
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% extends "template.html" %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body { background: #e8f1f9; }
+</style>
+{% endblock %}
+
+
+{% block title %}
+Day Trading - Buy & Sell
+{% endblock %}
+
+
+{% block content %}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
+
+            {% if message %}
+            <div style="padding-top: 20px;">
+                <div class="alert alert-info" role="alert">
+                    {{message}}
+                </div>
+            </div>
+            {% endif %}
+
+            <br>
+            <h4>Buy & Sell Stocks</h4>
+            <form action="{{ url_for('buysell_api') }}" method="post" novalidate>
+                {{ form.hidden_tag() }}
+                <p>
+                    {{ form.command.label }}<br>
+                    {{ form.command() }}<br>
+                    {% for error in form.command.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                </p>
+                <p>
+                    {{ form.stockSymbol.label }}<br>
+                    {{ form.stockSymbol() }}<br>
+                    {% for error in form.stockSymbol.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                </p>
+                <p>
+                    {{ form.amount.label }}<br>
+                    ${{ form.amount() }}<br>
+                    {% for error in form.amount.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                </p>
+                <p>{{ form.submit() }}</p>
+            </form>
+
+            <script>
+                document.getElementById("userCommand").addEventListener("change", updateRequiredFields);
+
+                var needsStockSymbol = {QUOTE: true, BUY: true, SELL: true};
+                var needsAmount = {BUY: true, SELL: true};
+
+                function updateRequiredFields() {
+                    var command = document.getElementById("userCommand").value;
+
+                    document.getElementById('stock_symbol').disabled = !(command in needsStockSymbol);
+                    document.getElementById('funds').disabled = !(command in needsAmount);
+                }
+            </script>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
