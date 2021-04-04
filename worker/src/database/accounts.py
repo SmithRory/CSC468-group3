@@ -30,15 +30,17 @@ class Accounts(me.Document):
     @staticmethod
     def user_exists(user_id, redis_cache) -> bool:
         """Checks if the user is in the database."""
+        if not Accounts.objects(__raw__={'_id': user_id}).only('user_id'):
+            return False
+        else:
+            return True
+        '''
         # Check cache first
         if user_cache.user_exists(user_id=user_id, redis_cache=redis_cache):
             return True
         else:
             # Check db.
-            if not Accounts.objects(__raw__={'_id': user_id}).only('user_id'):
-                return False
-            else:
-                return True
+        '''
 
 
 # Test function.

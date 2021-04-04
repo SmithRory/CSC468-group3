@@ -74,7 +74,7 @@ class CMDHandler:
             user.save()
 
             # Add to cache
-            add_user(user_id=user_id, redis_cache=self.redis_cache)
+            # add_user(user_id=user_id, redis_cache=self.redis_cache)
 
             # Log new user.
             DebugType().log(transactionNum=transactionNum, command="ADD", username=user_id, debugMessage=f"Creating user {user_id}.")

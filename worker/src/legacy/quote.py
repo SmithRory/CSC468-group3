@@ -22,7 +22,8 @@ def quote_server_connect():
 def get_quote(uid: str, stock_name: str, transactionNum: int, userCommand: str, redis_cache) -> float:
     global s
 
-    result = quote_cache.get(stock_name, redis_cache)
+    # result = quote_cache.get(stock_name, redis_cache)
+    result = None
 
     if result is None:
         command = f'{stock_name}, {uid}\n'
@@ -36,7 +37,7 @@ def get_quote(uid: str, stock_name: str, transactionNum: int, userCommand: str, 
 
             response = parser.quote_result_parse(data.decode('utf-8'))
 
-            quote_cache.add(stock_name, response[0], response[3], redis_cache)
+            # quote_cache.add(stock_name, response[0], response[3], redis_cache)
 
             QuoteServerType().log(transactionNum=transactionNum, price=response[0], stockSymbol=stock_name, username=uid, quoteServerTime=response[3], cryptokey=response[4])
 
@@ -52,11 +53,9 @@ def get_quote(uid: str, stock_name: str, transactionNum: int, userCommand: str, 
 
             return get_quote(uid, stock_name, transactionNum, userCommand, redis_cache)
 
-
-
     # add user funds after confirming
     # System Event log since received from cache
-    #print("Quote used from cache!!")
+
     SystemEventType().log(transactionNum=transactionNum, command=userCommand, username=uid, stockSymbol=stock_name)
 
     return result
