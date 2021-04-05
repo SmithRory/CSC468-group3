@@ -1,16 +1,14 @@
-from dataclasses import dataclass
-import time
+import redis
+from datetime import timedelta
 
-''' This is a temporary replacement for Reddis cache
-for use in the 1 user workload test only. Going forward
-Reddis will be implemented and replace this file.
-'''
 
-@dataclass
-class Quote:
-    stock_name: str
-    value: float
-    timestamp: float
+def add(stock_symbol, stock_price, quote_server_time, redis_cache):
+    redis_cache.set(stock_symbol, stock_price)
+    redis_cache.expire(stock_symbol, (int(quote_server_time)+1000))
 
-cache = {} # {stock_name: Quote}
-UPDATE_FREQ = 4 # Values are outdated after 4 seconds
+
+def get(stock_symbol, redis_cache):
+    stock_price = redis_cache.get(stock_symbol)
+    if stock_price:
+        stock_price = float(stock_price)
+    return stock_price

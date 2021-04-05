@@ -1,5 +1,6 @@
-{% extends 'bootstrap/base.html' %}
 {% import "bootstrap/wtf.html" as wtf %}
+
+{% extends "template.html" %}
 
 {% block styles %}
 {{ super() }}
@@ -10,7 +11,7 @@
 
 
 {% block title %}
-Day Trading App
+Day Trading - Overview
 {% endblock %}
 
 
@@ -20,31 +21,111 @@ Day Trading App
     <div class="row">
         <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
 
-            <h1 class="pt-5 pb-2">Day Trading!</h1>
+            <h2>Welcome {{ current_user.id }}!</h2>
 
-            <p class="lead">Manage your day trading account here</p>
+            {% if message %}
+            <div style="padding-top: 20px;">
+                <div class="alert alert-info" role="alert">
+                    {{message}}
+                </div>
+            </div>
+            {% endif %}
 
-            {{ wtf.quick_form(form) }}
+            <br>
+            <h4>Deposit</h4>
+            <form action="{{ url_for('add_api') }}" method="post" novalidate>
+                {{ form.hidden_tag() }}
+                <p>
+                    {{ form.amount.label }}<br>
+                    ${{ form.amount() }}<br>
+                    {% for error in form.amount.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                </p>
+                <p>{{ form.submit() }}</p>
+            </form>
 
-            <script>
-                command_select = document.getElementById('userCommand');
-                command_select.onchange = function () {
-                    fetch('/stockSymbol/' + command_select.value).then(function (response) {
-                        response.json().then(function (data){
-                            console.log(command_select)
-                            console.table(data);
-                            document.getElementById('stock_symbol').disabled = data.need
-                        });
-                    });
-                    fetch('/amount/' + command_select.value).then(function (response) {
-                        response.json().then(function (data){
-                            console.log(command_select)
-                            console.table(data);
-                            document.getElementById('funds').disabled = data.need
-                        });
-                    });
-                }
-            </script>
+            <h4>Account Summary</h4>
+            {% if account_summary %}
+            <p>
+                Account Balance: ${{ account_summary['account'] }}<br>
+                Available Funds: ${{ account_summary['available'] }}<br>
+            </p>
+
+            <p class="lead">Stocks</p>
+            {% if account_summary['stocks']|length > 0 %}
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Available</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    {% for stock in account_summary['stocks'] %}
+                    <th scope="row">{{ stock['symbol'] }}</th>
+                    <td>{{ stock['amount'] }}</td>
+                    <td>{{ stock['available'] }}</td>
+                    {% endfor %}
+                </tr>
+                </tbody>
+            </table>
+            {% else %}
+            <p>No stocks have been purchased.</p>
+            {% endif %}
+
+
+            <p class="lead">Auto Buy Transactions</p>
+            {% if account_summary['auto_buy']|length > 0 %}
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Trigger ($)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    {% for stock in account_summary['auto_buy'] %}
+                    <th scope="row">{{ stock['symbol'] }}</th>
+                    <td>{{ stock['amount'] }}</td>
+                    <td>{{ stock['trigger'] }}</td>
+                    {% endfor %}
+                </tr>
+                </tbody>
+            </table>
+            {% else %}
+            <p>No automatic buy transactions have been setup.</p>
+            {% endif %}
+
+
+            <p class="lead">Auto Sell Transactions</p>
+            {% if account_summary['auto_sell']|length > 0 %}
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Trigger ($)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    {% for stock in account_summary['auto_sell'] %}
+                    <th scope="row">{{ stock['symbol'] }}</th>
+                    <td>{{ stock['amount'] }}</td>
+                    <td>{{ stock['trigger'] }}</td>
+                    {% endfor %}
+                </tr>
+                </tbody>
+            </table>
+            {% else %}
+            <p>No automatic sell transactions have been setup.</p>
+            {% endif %}
+            {% endif %}
 
         </div>
     </div>

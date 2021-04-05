@@ -2,25 +2,32 @@ version: "3.7"
 
 services:
 
-  # flask:
-  #   build: frontend
-  #   container_name: flask
-  # networks:
-    # - custom_network
+  flask:
+    build: frontend
+    container_name: flask
+    ports:
+      - 5000:5000
+    networks:
+      - custom_network
+    depends_on:
+      - manager
+    environment:
+      - FRONTEND_EXCHANGE=${FRONTEND_EXCHANGE}
+      - CONFIRMS_EXCHANGE=${CONFIRMS_EXCHANGE}
   #   restart: always
   #   expose:
   #     - 8080
-  #   environment: 
+  #   environment:
   #     - BACKEND_PORT=${BACKEND_PORT}
-    
-  # nginx:
-  #   build: nginx
-  #   container_name: nginx
-  # networks:
-    # - custom_network
-  #   restart: always
-  #   ports:
-  #     - 80:80
+
+  nginx:
+    build: nginx
+    container_name: nginx
+    networks:
+      - custom_network
+    restart: always
+    ports:
+      - 80:80
 
   manager:
     build: manager
@@ -29,9 +36,8 @@ services:
      - custom_network
     restart: always
     depends_on:
-      - rabbitmq_backend
-      - rabbitmq_frontend
-      - rabbitmq_confirm
+      - worker
+      - rabbitmq
     environment: 
       - NUM_WORKERS=${NUM_WORKERS}
       - FRONTEND_EXCHANGE=${FRONTEND_EXCHANGE}
@@ -42,7 +48,7 @@ services:
       - MONGODB_USERNAME=pygang_worker
       - MONGODB_PASSWORD=pygang_worker
       - MONGODB_HOSTNAME=mongodb
-    volumes: 
+    volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
   worker:
@@ -51,38 +57,25 @@ services:
     networks:
      - custom_network
     restart: always
-    depends_on:
-      - mongodb
-      - rabbitmq_backend
-      - rabbitmq_confirm
     ports:
       - 4444:4444
     extra_hosts:
       - "quoteserver.seng.uvic.ca:192.168.4.2"
-    
-  rabbitmq_frontend:
+    depends_on:
+      - mongodb
+      - rabbitmq
+
+  rabbitmq:
     image: rabbitmq:3-management
-    container_name: rabbitmq-frontend
+    container_name: rabbitmq
+    restart: unless-stopped
     networks:
      - custom_network
-    # environment:
-    #   - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-admin}
-    #   - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-admin}
     ports:
-      - 5672:5672
-      - 15672:15672
-
-  rabbitmq_backend:
-    image: rabbitmq:3-management
-    container_name: rabbitmq-backend
-    networks:
-     - custom_network
-
-  rabbitmq_confirm:
-    image: rabbitmq:3-management
-    container_name: rabbitmq-confirm
-    networks:
-     - custom_network
+     - 5672:5672
+     - 15672:15672
+    logging:
+      driver: "none"
 
   mongodb:
     image: mongo
@@ -100,9 +93,23 @@ services:
     volumes:
      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
      - mongo-data:/data/db
+    logging:
+      driver: "none"
+
+  redishost:
+    image: redis
+    container_name: redishost
+    networks:
+      - custom_network
+    ports:
+      - 6739
+    volumes:
+      - redis_data:/data
 
 volumes:
   mongo-data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

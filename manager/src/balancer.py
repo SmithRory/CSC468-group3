@@ -1,164 +1,137 @@
-from worker import UserIds
+import threading
 from parser import Command, parse_command
-from threading import Thread, Timer
+from publisher import Publisher
+from threading import Thread, Timer, Lock
+from dataclassesfile import ThreadCommunication
 import time
 import os
 import pika
-import queue
 import sys
+import random
+import hashlib
+from functools import wraps
 
 class Balancer():
-    def __init__(self, workers, queue, mutex):
+    def __init__(self, workers, communication, runtime_data):
         self.workers = workers
-        self.user_ids = []
-        self.command_queue = queue
-        self.mutex = mutex
+        self._NUM_WORKERS = len(workers)
+        self.communication = communication
+        self._send_buffer = None
 
-        self._cleanup_timer = None
-        self._CLEANUP_PERIOD = 15.0 # Seconds
-        self._USER_TIMEOUT = 10.0 # Seconds
+        self._print_status_timer = None
+        self._total_commands_seen = 0
+        self.runtime_data = runtime_data
+        self._prev_active_commands = 0
+        self._PRINT_PERIOD = 10.0 # Seconds
 
-        self._send_address = "rabbitmq-backend"
-        self._exchange = os.environ["BACKEND_EXCHANGE"]
-        self._connection = None
-        self._channel = None
+        self._send_address = "rabbitmq"
+        self.publish_communication = None
+        self.publisher = None
+        self.t_publisher = None
 
-    def setup(self):
-        connected = False
-        while not connected:
-            print("Attempting to connect to rabbitmq-backend")
-            try:
-                self._connection = pika.BlockingConnection(
-                    pika.ConnectionParameters(
-                        host=self._send_address,
-                        heartbeat=600,
-                        blocked_connection_timeout=300)
-                )
-                self._channel = self._connection.channel()
-                self._channel.exchange_declare(exchange=self._exchange)
-
-                print("Connected to rabbitmq-backend")
-                connected = True
-
-            except pika.exceptions.AMQPChannelError as err:
-                print(f"Failed to connect to rabbitmq-backend with error {err}")
-                time.sleep(2)
-            except pika.exceptions.AMQPConnectionError:
-                print("Failed to connect to rabbitmq-backend")
-                time.sleep(2)
-
-    ''' Blocking function that connects to frontend and backend rabbit queue
+    ''' Connects to frontend and backend rabbit queue
     and then begins listening for incoming commands. 
     '''
-    def run(self):
-        self.setup()
-        self._cleanup_timer = Timer(
-            self._CLEANUP_PERIOD,
-            self.cleanup,
+    def setup(self):
+        self.publish_communication = ThreadCommunication(
+            buffer = [],
+            length=0,
+            mutex=Lock()
+        )
+
+        self.publisher = Publisher(
+            connection_param=self._send_address,
+            exchange_name=os.environ["BACKEND_EXCHANGE"],
+            communication = self.publish_communication
+        )
+        self.t_publisher = threading.Thread(target=self.publisher.run)
+        self.t_publisher.start()
+
+        self._print_status_timer = Timer(
+            self._PRINT_PERIOD,
+            self.print_status,
             args=None,
             kwargs=None
         )
-        self._cleanup_timer.start()
+        self._print_status_timer.start()
 
-        
-        while True:
-            if not self.command_queue.empty():
-                self.balance(self.command_queue.get())
+    def balance(self):
+        with self.communication.mutex:
+            self._send_buffer = self.communication.buffer
+            self.communication.buffer = []
+            self.communication.length = 0
 
-        print("End of balancer thread")
+        start = time.time()
+        for message in self._send_buffer:
+            self._total_commands_seen = self._total_commands_seen + 1
+            routing_key = None
+            command = parse_command(message)
 
-    def balance(self, message: str):
-        #print(f"Received message:{message}")
+            if command.command == "DUMPLOG":
+                while self.runtime_data.active_commands != 0:
+                    time.sleep(5)
+                routing_key = "worker_queue_0"
+                print("Sent DUMPLOG to worker_queue_0")
+            else:
+                worker_index = calculate_worker_index(command.uid, self._NUM_WORKERS)
 
-        routing_key = None
-        command = parse_command(message)
+                routing_key = self.workers[worker_index].route_key
+                with self.runtime_data.mutex:
+                    self.runtime_data.active_commands += 1
 
-        with self.mutex:
-            for user in self.user_ids:
-                if user.user_id == command.uid:
-                    for worker in self.workers:
-                        if worker.container_id == user.assigned_worker:
-                            routing_key = worker.route_key
-                            worker.commands.append(command.number)
-                            break
+            with self.publish_communication.mutex:
+                self.publish_communication.buffer.append((routing_key, message))
+                self.publish_communication.length += 1
 
-                    user.last_seen = time.time()
-                    break
+        print(f"balance() took {time.time()-start} to process {len(self._send_buffer)} commands")
 
-            if routing_key is None:
-                routing_key = self.assign_worker(command.uid, command.number)
+    ''' Removes users from user_ids list if they havent been seen for USER_TIMEOUT.
+    Also prints current activity for all workers and users.
+    '''
+    def print_status(self):
+        print("Active: {:>10} | Total: {:>10} | TPS: {:>10} |".format(
+            self.runtime_data.active_commands, 
+            self._total_commands_seen,
+            (self._prev_active_commands-self.runtime_data.active_commands)/self._PRINT_PERIOD)
+        )
 
-        if command.command == "DUMPLOG":
-            routing_key = "worker_queue_0"
-            print("Sent DUMPLOG to worker_queue_0")
-
-        #print(f"Sent command from uid={command.uid} to worker={routing_key}")
-        try:
-            self._channel.basic_publish(
-                exchange=self._exchange,
-                routing_key=routing_key,
-                body=message,
-                properties=pika.BasicProperties()
-            )
-        except:
-            self.setup()
-            self._channel.basic_publish(
-                exchange=self._exchange,
-                routing_key=routing_key,
-                body=message,
-                properties=pika.BasicProperties()
-            )
-
-        #print(f"Sent message to {routing_key}")
-
-    ''' Assigns a uid to a worker. Returns the routing key for the assigned worker'''
-    def assign_worker(self, uid: str, number: int) -> str:
-        minimum = len(self.workers[0].commands)
-        best_worker = self.workers[0]
-
-        for worker in self.workers:
-            if (length := len(worker.commands)) < minimum:
-                minimum = length
-                best_worker = worker
-
-        for user in self.user_ids:
-            if user.user_id == uid:
-                user.last_seen = time.time()
-                user.assigned_worker = best_worker.container_id
-                best_worker.commands.append(number)
-                return best_worker.route_key
-
-        print(f"First contact with user {uid}")
-        print(f"Assigned worker {best_worker.container_id} to {uid}")
-        self.user_ids.append(UserIds(
-            user_id=uid,
-            assigned_worker=best_worker.container_id,
-            last_seen=time.time()
-        ))
-
-        best_worker.commands.append(number)
-        return best_worker.route_key
-
-    def cleanup(self):
-        with self.mutex:
-            print("\n\n")
-            for worker in self.workers:
-                print(worker)
-                pass
-
-            for user in self.user_ids:
-                print(user)
-                pass
-
-            self.user_ids = [user for user in self.user_ids if (time.time() - user.last_seen < self._USER_TIMEOUT)]
+        self._prev_active_commands = self.runtime_data.active_commands
 
         sys.stdout.flush()
 
-        self._cleanup_timer = Timer(
-            self._CLEANUP_PERIOD,
-            self.cleanup,
+        self._print_status_timer = Timer(
+            self._PRINT_PERIOD,
+            self.print_status,
             args=None,
             kwargs=None
         )
-        self._cleanup_timer.start()
+        self._print_status_timer.start()
 
+    def all_workers_finished(self) -> bool:
+        with self.mutex:
+            for worker in self.workers:
+                for _ in worker.commands:
+                    return False
+
+        return True
+
+''' Decorator that caches result of function depending on args
+and returns result if its in the cache rather than running 
+the function again
+'''
+def memo(f):
+    cache = {}
+
+    @wraps(f)
+    def wrap(*arg):
+        if arg not in cache:
+            cache['arg'] = f(*arg)
+        return cache['arg']
+    
+    return wrap
+
+@memo
+def calculate_worker_index(uid: str, NUM_WORKERS: int):
+    worker_index = hashlib.sha256(uid.encode('utf-8')).digest()
+    worker_index = int.from_bytes(worker_index, byteorder='big', signed=False) % NUM_WORKERS
+    return worker_index

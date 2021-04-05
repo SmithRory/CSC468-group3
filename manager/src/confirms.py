@@ -5,11 +5,11 @@ from threading import Lock
 import sys
 
 class Confirms():
-    def __init__(self, workers, mutex):
+    def __init__(self, workers, runtime_data):
         self.workers = workers
-        self.mutex = mutex
+        self.runtime_data = runtime_data
 
-        self._recv_address = "rabbitmq-confirm"
+        self._recv_address = "rabbitmq"
         self._consumer = None
 
     def connect(self):
@@ -17,8 +17,9 @@ class Confirms():
             call_on_callback=self.on_receive,
             connection_param=self._recv_address,
             exchange_name=os.environ["CONFIRMS_EXCHANGE"],
+            exchange_type='fanout',
             queue_name="confirm",
-            routing_key="confirm"
+            routing_key=""
         )
 
     def run(self):
@@ -26,13 +27,12 @@ class Confirms():
         self._consumer.run()
 
     def on_receive(self, message):
-        number = re.findall(".*?\[(.*)].*", message)
-        number = int(number[0])
-        #print(f"Recv confirm {message} with id: {number}")
-        #sys.stdout.flush()
+        #number = re.findall(".*?\[(.*)].*", message)
+        #number = int(number[0])
 
-        with self.mutex:
-            for worker in self.workers:
-                if number in worker.commands:
-                    worker.commands.remove(number)
-                    return
+        with self.runtime_data.mutex:
+            if self.runtime_data.active_commands > 0:
+                self.runtime_data.active_commands -= 1
+
+        # worker_index = abs(hash(command.uid)) % self._NUM_WORKERS
+        # self.workers[worker_index].remove(number)

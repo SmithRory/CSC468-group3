@@ -1,7 +1,7 @@
 import threading
 import time
 from database.accounts import Accounts, Stocks
-from database.logs import DebugType, AccountTransactionType
+from database.logs import DebugType, AccountTransactionType, ErrorEventType
 from legacy import quote
 from mongoengine import DoesNotExist
 import decimal
@@ -14,7 +14,7 @@ class UserPollingStocks:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self.user_polling_stocks = {} 
+        self.user_polling_stocks = {}
         ''' user_polling_stocks format
         { 'stock_symbol' : { 
             'auto_buy': {'user1':2, 'user2':50}, # key is the user_id, value is the transactionNumber
@@ -28,17 +28,21 @@ class UserPollingStocks:
         ''' Returns a list of all keys. '''
         return list(self.user_polling_stocks)
 
-    def get_last_info(self, stock_symbol):
-        '''
+    def get_last_info(self, stock_symbol) -> list:
+        """
         Returns a list containing:
             last transaction number [0],
             last command [1],
             last userid [2]
-        '''
-        transNum = self.user_polling_stocks[stock_symbol]['lastTransNum']
-        command = self.user_polling_stocks[stock_symbol]['lastCommand']
-        user = self.user_polling_stocks[stock_symbol]['lastUser']
-        return list((transNum, command, user))
+        """
+        try:
+            transaction_num = self.user_polling_stocks[stock_symbol]['lastTransNum']
+            command = self.user_polling_stocks[stock_symbol]['lastCommand']
+            user = self.user_polling_stocks[stock_symbol]['lastUser']
+        except Exception as e:
+            print(f"ExceptionThrown: {e}\nERROR: Failed to get last transaction info for stock {stock_symbol}\nuser_polling_stocks:\n{self.user_polling_stocks}")
+            return []
+        return list((transaction_num, command, user))
 
     def remove_if_empty(self, stock_symbol):
         '''
@@ -71,6 +75,10 @@ class UserPollingStocks:
             auto_transactions['lastCommand'] = command
             auto_transactions['lastUser'] = user_id
 
+    def get_autobuy_users(self, stock_symbol):
+        ''' Returns a list of all users with an autobuy setup. '''
+        return list(self.user_polling_stocks[stock_symbol]['auto_buy'])
+
     def get_user_autosell(self, user_id, stock_symbol):
         ''' Removes the user from the dictionary and returns the user's transaction number (None if does not exist). '''
         with self._lock:
@@ -91,16 +99,22 @@ class UserPollingStocks:
             auto_transactions['lastCommand'] = command
             auto_transactions['lastUser'] = user_id
 
-class QuotePollingThread(threading.Thread):
-    '''
-    Polls the stocks prices and triggers any auto sell/buy transactions when necessary.
-    '''
+    def get_autosell_users(self, stock_symbol):
+        """ Returns a list of all users with an autosell setup. """
+        return list(self.user_polling_stocks[stock_symbol]['auto_sell'])
 
-    def __init__(self, quote_polling, polling_rate, response_publisher):
+
+class QuotePollingThread(threading.Thread):
+    """
+    Polls the stocks prices and triggers any auto sell/buy transactions when necessary.
+    """
+
+    def __init__(self, quote_polling, polling_rate, response_publisher, redis_cache):
         threading.Thread.__init__(self)
         self.quote_polling = quote_polling
         self.polling_rate = polling_rate
         self.response_publisher = response_publisher
+        self.redis_cache = redis_cache
 
     def run(self):
         while True:
@@ -119,21 +133,25 @@ class QuotePollingThread(threading.Thread):
         # Get the most up-to-date command information for logging purposes.
         info = self.quote_polling.get_last_info(stock_symbol)
 
+        # Check if an error happened.
+        if not info:
+            return
+
         # Get the current stock price.
-        value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1])
+        value = quote.get_quote(uid=info[2], stock_name=stock_symbol, transactionNum=info[0], userCommand=info[1], redis_cache = self.redis_cache)
 
         # Get all users that have an auto buy trigger equal to or less than the quote value.
-        auto_buy_users = Accounts.objects(__raw__={"auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
-        print(f"AUTO_BUY_USERS: {auto_buy_users.to_json()}")
+        auto_buy_users = Accounts.objects(__raw__={"_id": {"$in": self.quote_polling.get_autobuy_users(stock_symbol)}, "auto_buy": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$lte": value}}}}).only('user_id')
+        #print(f"AUTO_BUY_USERS: {auto_buy_users.to_json()}")
 
         # Get all users that have an auto sell trigger equal to or greater than the quote value.
-        auto_sell_users = Accounts.objects(__raw__={"auto_sell": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$gte": value}}}}).only('user_id')
-        print(f"AUTO_SELL_USERS: {auto_buy_users.to_json()}")
+        auto_sell_users = Accounts.objects(__raw__={"_id": {"$in": self.quote_polling.get_autosell_users(stock_symbol)}, "auto_sell": {"$elemMatch": {"symbol": stock_symbol, "trigger": {"$gte": value}}}}).only('user_id')
+        #print(f"AUTO_SELL_USERS: {auto_buy_users.to_json()}")
 
         # Perform auto buy for all the users.
         for user in auto_buy_users:
             user_id = user.user_id
-            transactionNum = self.quote_polling.get_user_autobuy(user_id = user_id, stock_symbol = stock_symbol)
+            transactionNum = self.quote_polling.get_user_autobuy(user_id=user_id, stock_symbol=stock_symbol)
 
             if transactionNum is None:
                 # Error
@@ -146,7 +164,7 @@ class QuotePollingThread(threading.Thread):
         # Perform auto sell for all the users.
         for user in auto_sell_users:
             user_id = user.user_id
-            transactionNum = self.quote_polling.get_user_autosell(user_id = user_id, stock_symbol = stock_symbol)
+            transactionNum = self.quote_polling.get_user_autosell(user_id=user_id, stock_symbol=stock_symbol)
             
             if transactionNum is None:
                 # Error
@@ -163,34 +181,39 @@ class QuotePollingThread(threading.Thread):
         DebugType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, debugMessage=info_msg)
 
         # Get the user document
-        user_account = Accounts.objects.get(pk=user_id)
+        user_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_buy', 'available', 'account', 'stocks').first()
 
-        # Remove the auto buy transaction from the users list of auto buys
         users_auto_buy = user_account.auto_buy.get(symbol=stock_symbol)
-        user_account.auto_buy.remove(users_auto_buy)
-
-        # Add the difference between the reserved amount and transaction cost to the amount available.
-        # Deduct the transaction cost from the account.
         reserved_amount = users_auto_buy.amount * users_auto_buy.trigger
         transaction_cost = users_auto_buy.amount * value
-        user_account.available = user_account.available + decimal.Decimal(reserved_amount) - decimal.Decimal(transaction_cost)
-        user_account.account = user_account.account - decimal.Decimal(transaction_cost)
+        update = {
+            'pull__auto_buy__symbol': stock_symbol, # Remove the auto buy transaction from the users list of auto buys
+            'inc__available': (decimal.Decimal(reserved_amount) - decimal.Decimal(transaction_cost)), # Add the difference between the reserved amount and transaction cost to the amount available.
+            'inc__account': -decimal.Decimal(transaction_cost) # Deduct the transaction cost from the account.
+        }
         
         # Update the number of stocks owned.
-        users_stocks = None
         try:
             users_stock = user_account.stocks.get(symbol=stock_symbol)
         except DoesNotExist:
             # Create a new stock
             new_stock = Stocks(symbol=stock_symbol, amount=users_auto_buy.amount, available=users_auto_buy.amount)      
-            user_account.stocks.append(new_stock)
+            update['push__stocks'] = new_stock
+
+            ret = Accounts.objects(pk=user_id).update_one(**update)
         else:
             # Increment the amount of stock
-            users_stock.amount = users_stock.amount + users_auto_buy.amount
-            users_stock.available = users_stock.available + users_auto_buy.amount
+            update['inc__stocks__S__amount'] = users_auto_buy.amount
+            update['inc__stocks__S__available'] = users_auto_buy.amount
 
-        # Save the user.
-        user_account.save()
+            ret = Accounts.objects(pk=user_id, stocks__symbol=stock_symbol).update_one(**update)
+
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (AutoBuyHandler) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_BUY_TRIGGER", username=user_id, errorMessage=err_msg)
+            return err_msg
 
         # Notify the user.
         ok_msg = f"[{transactionNum}] Successfully completed auto buy of {users_auto_buy.amount} shares of stock {stock_symbol} for user {user_id}."
@@ -205,25 +228,30 @@ class QuotePollingThread(threading.Thread):
         DebugType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, debugMessage=info_msg)
 
         # Get the user document
-        users_account = Accounts.objects.get(pk=user_id)
+        users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell', 'available', 'account', 'stocks').first()
 
-        # Remove the auto sell.
         users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
-        users_account.auto_sell.remove(users_auto_sell)
-
-        # Decrease the number of owned stocks.
         users_stock = users_account.stocks.get(symbol=stock_symbol)
-        users_stock.amount = users_stock.amount - users_auto_sell.amount 
-        if users_stock.amount == 0:
-            users_account.stocks.remove(users_stock) 
-
-        # Adjust the funds in the account.
         sale_profit = decimal.Decimal(value) * decimal.Decimal(users_auto_sell.amount)
-        users_account.account = users_account.account + sale_profit
-        users_account.available = users_account.available + sale_profit
+        update = {
+            'pull__auto_sell__symbol': stock_symbol, # Remove the auto sell
+            'inc__account': sale_profit,
+            'inc__available': sale_profit
+        }
 
-        # Save the user.
-        users_account.save()
+        if users_stock.amount == users_auto_sell.amount:
+            update['pull__stocks__symbol'] = stock_symbol # Remove the stock if there is none remaining
+            ret = Accounts.objects(pk=user_id).update_one(**update)
+        else:
+            update['inc__stocks__S__amount'] = -users_auto_sell.amount # Decrement the number of the stock
+            ret = Accounts.objects(pk=user_id, stocks__symbol=stock_symbol).update_one(**update)
+
+        # Check the update succeeded.
+        if ret != 1:
+            err_msg = f"[{transactionNum}] Error: (AutoSellHandler) Failed to update account {user_id}."
+            print(err_msg)
+            ErrorEventType().log(transactionNum=transactionNum, command="SET_SELL_TRIGGER", username=user_id, errorMessage=err_msg)
+            return err_msg
 
         # Notify the user.
         ok_msg = f"[{transactionNum}] Successfully completed auto sell of {users_auto_sell.amount} shares of stock {stock_symbol} for user {user_id}."

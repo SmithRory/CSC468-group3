@@ -17,6 +17,7 @@ The following steps are needed to get the software running in the VM provided by
 5. Install pip3: `sudo apt install python3-pip`
 6. Install pika: `sudo pip3 install pika`
 7. Run the server: `sudo docker-compose up --build`
+8. To clean everything up: `sudo ./clean.sh`
 
 ### Running Workloads
 Once the VM has been setup, workloads can be run.
@@ -32,7 +33,7 @@ Once the VM has been setup, workloads can be run.
 - `docker kill <container name>` to remove a container (helpful for killing workers spun up by the manager)
 - `sudo docker container stop $(sudo docker ps -a -q)`
 - `sudo docker cp <containerID>:/app/testLOG ./testLOG`
-
+- `grep --only-matching '<username>.[a-zA-Z0-9]*</username>' logfilename | sort --unique | wc -l` to find the number of users
 ## MongoDB
 
 - Running as a local instance in a container

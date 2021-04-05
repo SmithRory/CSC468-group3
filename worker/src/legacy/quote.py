@@ -2,6 +2,7 @@ import sys
 import os
 import socket
 import time
+from random import randrange
 from . import parser
 from . import quote_cache
 from database.logs import QuoteServerType, SystemEventType
@@ -17,13 +18,13 @@ def quote_server_connect():
     s.connect((QUOTE_ADDRESS, PORT))
     s.settimeout(None)
 
-def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : str) -> float:
+
+def get_quote(uid: str, stock_name: str, transactionNum: int, userCommand: str, redis_cache) -> float:
     global s
 
-    result = quote_cache.cache.get(stock_name, None)
-    timestampForLog = round(time.time()*1000)
-    
-    if result is None or time.time() - result.timestamp >= quote_cache.UPDATE_FREQ:
+    result = quote_cache.get(stock_name, redis_cache)
+
+    if result is None:
         command = f'{stock_name}, {uid}\n'
 
         try:
@@ -31,22 +32,12 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
             data = s.recv(1024)
             if len(data) < 2 :
                 quote_server_connect()
-                return get_quote(uid, stock_name, transactionNum, userCommand)
+                return get_quote(uid, stock_name, transactionNum, userCommand, redis_cache)
 
             response = parser.quote_result_parse(data.decode('utf-8'))
 
-            timestampForLog = time.time()
+            quote_cache.add(stock_name, response[0], response[3], redis_cache)
 
-            quote_cache.cache.update({
-                stock_name: quote_cache.Quote
-                (
-                    stock_name=stock_name,
-                    value=response[0],
-                    timestamp=timestampForLog
-                )
-            })
-
-            # update after trying on quote server, update quote server time too
             QuoteServerType().log(transactionNum=transactionNum, price=response[0], stockSymbol=stock_name, username=uid, quoteServerTime=response[3], cryptokey=response[4])
 
             return response[0] # Only returns the stock price
@@ -59,13 +50,13 @@ def get_quote(uid : str, stock_name : str, transactionNum : int, userCommand : s
                 print("Socket connection timeout")
                 time.sleep(0.1) # Just to reduce spam error messages
 
-            return get_quote(uid, stock_name, transactionNum, userCommand)
+            return get_quote(uid, stock_name, transactionNum, userCommand, redis_cache)
 
 
 
     # add user funds after confirming
     # System Event log since received from cache
-
+    #print("Quote used from cache!!")
     SystemEventType().log(transactionNum=transactionNum, command=userCommand, username=uid, stockSymbol=stock_name)
 
-    return result.value
+    return result

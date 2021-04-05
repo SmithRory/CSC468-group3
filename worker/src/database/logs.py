@@ -90,14 +90,26 @@ class UserCommandType(mongoengine.Document):
     def log(self, transactionNum, command, username=None, stockSymbol=None, filename=None, funds=None):
         command_log = UserCommandType(timestamp=(round(time.time()*1000)), server=SERVER_NAME, transactionNum=transactionNum, command=command, username=username, stockSymbol=stockSymbol, filename=filename, funds=funds).save()
 
-def get_logs():
-
-    json_data = "{ \"userCommand\": " + UserCommandType.objects.exclude("id").to_json() + ","
-    json_data += "\"quoteServer\" : " + QuoteServerType.objects.exclude("id").to_json() + ","
-    json_data += "\"accountTransaction\" : " + AccountTransactionType.objects.exclude("id").to_json() + ","
-    json_data += "\"systemEvent\" : " + SystemEventType.objects.exclude("id").to_json() + ","
-    json_data += "\"errorEvent\" : " + ErrorEventType.objects.exclude("id").to_json() + ","
-    json_data += "\"debugEvent\" : " + DebugType.objects.exclude("id").to_json()
+def get_logs(user_id):
+    if user_id:
+        return get_user_logs(user_id)
+    json_data = "{ \"userCommand\": " + UserCommandType.objects.exclude("id").to_json()
+    json_data += ",\"quoteServer\" : " + QuoteServerType.objects.exclude("id").to_json()
+    json_data += ",\"accountTransaction\" : " + AccountTransactionType.objects.exclude("id").to_json()
+    json_data += ",\"systemEvent\" : " + SystemEventType.objects.exclude("id").to_json()
+    json_data += ",\"errorEvent\" : " + ErrorEventType.objects.exclude("id").to_json()
+    json_data += ",\"debugEvent\" : " + DebugType.objects.exclude("id").to_json()
     json_data += "}"
     
+    return json_data
+
+def get_user_logs(user_id):
+    json_data = "{ \"userCommand\": " + UserCommandType.objects(username=user_id).exclude("id").to_json()
+    json_data += ",\"quoteServer\" : " + QuoteServerType.objects(username=user_id).exclude("id").to_json()
+    json_data += ",\"accountTransaction\" : " + AccountTransactionType.objects(username=user_id).exclude("id").to_json()
+    json_data += ",\"systemEvent\" : " + SystemEventType.objects(username=user_id).exclude("id").to_json()
+    json_data += ",\"errorEvent\" : " + ErrorEventType.objects(username=user_id).exclude("id").to_json()
+    json_data += ",\"debugEvent\" : " + DebugType.objects(username=user_id).exclude("id").to_json()
+    json_data += "}"
+
     return json_data
