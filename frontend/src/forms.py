@@ -17,9 +17,9 @@ class BuySellForm(FlaskForm):
     command = SelectField('Command', id="userCommand", validators=[DataRequired()],
                           choices=["QUOTE", "BUY", "COMMIT_BUY", "CANCEL_BUY", "SELL", "COMMIT_SELL",
                                    "CANCEL_SELL"])
-    stockSymbol = StringField('Stock Symbol', id="stock_symbol",
-                              validators=[DataRequired(), Length(min=1, max=3)])
-    amount = DecimalField('Amount', id="funds", validators=[Optional(), NumberRange(min=0)])
+    stockSymbol = StringField('Stock Symbol', id="stock_symbol", default=None, 
+                              validators=[Optional(), Length(min=1, max=3)])
+    amount = DecimalField('Amount', id="funds", default=None, validators=[Optional(), NumberRange(min=0)])
     submit = SubmitField('Submit')
 
 
@@ -29,5 +29,5 @@ class AutoTransactionForm(FlaskForm):
                                    "SET_SELL_AMOUNT", "SET_SELL_TRIGGER", "CANCEL_SET_SELL"])
     stockSymbol = StringField('Stock Symbol', id="stock_symbol",
                               validators=[DataRequired(), Length(min=1, max=3)])
-    amount = DecimalField('Amount', id="funds", validators=[Optional(), NumberRange(min=0)])
+    amount = DecimalField('Amount', id="funds", default=None, validators=[Optional(), NumberRange(min=0)])
     submit = SubmitField('Submit')

@@ -63,13 +63,13 @@ Day Trading - Overview
                 </tr>
                 </thead>
                 <tbody>
-                <tr>
-                    {% for stock in account_summary['stocks'] %}
+                {% for stock in account_summary['stocks'] %}
+		<tr>
                     <th scope="row">{{ stock['symbol'] }}</th>
                     <td>{{ stock['amount'] }}</td>
                     <td>{{ stock['available'] }}</td>
-                    {% endfor %}
                 </tr>
+                {% endfor %}
                 </tbody>
             </table>
             {% else %}
@@ -88,13 +88,13 @@ Day Trading - Overview
                 </tr>
                 </thead>
                 <tbody>
+                {% for stock in account_summary['auto_buy'] %}
                 <tr>
-                    {% for stock in account_summary['auto_buy'] %}
                     <th scope="row">{{ stock['symbol'] }}</th>
                     <td>{{ stock['amount'] }}</td>
                     <td>{{ stock['trigger'] }}</td>
-                    {% endfor %}
-                </tr>
+		</tr>
+                {% endfor %}
                 </tbody>
             </table>
             {% else %}
@@ -113,13 +113,13 @@ Day Trading - Overview
                 </tr>
                 </thead>
                 <tbody>
+                {% for stock in account_summary['auto_sell'] %}
                 <tr>
-                    {% for stock in account_summary['auto_sell'] %}
                     <th scope="row">{{ stock['symbol'] }}</th>
                     <td>{{ stock['amount'] }}</td>
                     <td>{{ stock['trigger'] }}</td>
-                    {% endfor %}
                 </tr>
+                {% endfor %}
                 </tbody>
             </table>
             {% else %}
