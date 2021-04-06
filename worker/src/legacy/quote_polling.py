@@ -184,6 +184,10 @@ class QuotePollingThread(threading.Thread):
         user_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_buy', 'available', 'account', 'stocks').first()
 
         users_auto_buy = user_account.auto_buy.get(symbol=stock_symbol)
+
+        if users_auto_buy.trigger > value:
+            return
+
         reserved_amount = users_auto_buy.amount * users_auto_buy.trigger
         transaction_cost = users_auto_buy.amount * value
         update = {
@@ -231,6 +235,10 @@ class QuotePollingThread(threading.Thread):
         users_account = Accounts.objects(__raw__={'_id': user_id}).only('auto_sell', 'available', 'account', 'stocks').first()
 
         users_auto_sell = users_account.auto_sell.get(symbol=stock_symbol)
+
+        if users_auto_sell.trigger < value:
+            return
+
         users_stock = users_account.stocks.get(symbol=stock_symbol)
         sale_profit = decimal.Decimal(value) * decimal.Decimal(users_auto_sell.amount)
         update = {

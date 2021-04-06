@@ -61,7 +61,7 @@ Day Trading - Auto Transactions
                 document.getElementById("userCommand").addEventListener("change", updateRequiredFields);
 
                 var needsStockSymbol = {QUOTE: true, SET_BUY_AMOUNT: true, CANCEL_SET_BUY: true, SET_BUY_TRIGGER: true, SET_SELL_AMOUNT: true, SET_SELL_TRIGGER: true, CANCEL_SET_SELL: true};
-                var needsAmount = {SET_BUY_AMOUNT: true, SET_SELL_AMOUNT: true, SET_BUY_TRIGGER: true, SET_SElL_TRIGGER: true};
+                var needsAmount = {SET_BUY_AMOUNT: true, SET_SELL_AMOUNT: true, SET_BUY_TRIGGER: true, SET_SELL_TRIGGER: true};
 
                 function updateRequiredFields() {
                     var command = document.getElementById("userCommand").value;

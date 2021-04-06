@@ -75,7 +75,8 @@ def homepage():
     form = AddForm()
 
     account_summary = send_command(f"[{transaction_num}] DISPLAY_SUMMARY,{current_user.id}")
-    account_summary = json.loads(account_summary[23:-1])  # Gets just the json data
+    account_summary = str(account_summary[account_summary.find('{'):account_summary.rfind('}')+1])
+    account_summary = json.loads(account_summary)  # Gets just the json data
 
     message = None
     if 'message' in request.args:
@@ -137,17 +138,19 @@ def add_api():
 @login_required
 def buysell_api():
     global transaction_num
-
+    
     # Handle the form data.
     user_id = current_user.id
     requested_command = f"[{transaction_num}] {request.form['command']},{user_id}"
     transaction_num += 1
 
-    if request.form['stockSymbol'] is not None:
-        requested_command = f"{requested_command},{request.form['stockSymbol']}"
+    stock_symbol = request.form.get('stockSymbol')
+    if stock_symbol:
+        requested_command = f"{requested_command},{stock_symbol}"
 
-        if request.form['amount'] is not None:
-            requested_command = f"{requested_command},{request.form['amount']}"
+        amount = request.form.get('amount')
+        if amount is not None:
+            requested_command = f"{requested_command},{amount}"
 
     message = send_command(requested_command)
 
@@ -164,11 +167,13 @@ def auto_api():
     requested_command = f"[{transaction_num}] {request.form['command']},{user_id}"
     transaction_num += 1
 
-    if request.form['stockSymbol'] is not None:
-        requested_command = f"{requested_command},{request.form['stockSymbol']}"
-
-        if request.form['amount'] is not None:
-            requested_command = f"{requested_command},{request.form['amount']}"
+    stock_symbol = request.form.get('stockSymbol')
+    if stock_symbol:
+        requested_command = f"{requested_command},{stock_symbol}"
+        
+        amount = request.form.get('amount')
+        if amount is not None:
+            requested_command = f"{requested_command},{amount}"
 
     message = send_command(requested_command)
 
